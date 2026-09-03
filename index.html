@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GERENCIAR S.R.L. — Gestión de Agentes</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Open+Sans:wght@600;700;800&family=Fira+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="styles.css">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.5.0/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body>
+
+<!-- ================= PANTALLA DE LOGIN ================= -->
+<section id="pantalla-login" class="pantalla-login">
+  <h1>GERENCIAR S.R.L.</h1>
+  <p class="subtitulo">Gestión de Agentes</p>
+
+  <form id="form-login" class="tarjeta-login">
+    <label>
+      Email
+      <input type="email" id="login-email" required autocomplete="username">
+    </label>
+    <label>
+      Contraseña
+      <input type="password" id="login-password" required autocomplete="current-password">
+    </label>
+    <button type="submit">Ingresar</button>
+    <p id="login-error" class="mensaje-error" role="alert"></p>
+  </form>
+</section>
+
+<!-- ================= APP PRINCIPAL (post-login) ================= -->
+<div id="app" class="app oculto">
+
+  <header class="encabezado">
+    <div class="encabezado-izq">
+      <button id="btn-toggle-menu" class="btn-toggle-menu" aria-label="Mostrar/ocultar menú">☰</button>
+      <div class="marca">
+        <div>
+          <strong>GERENCIAR S.R.L.</strong>
+          <span class="marca-sub">Gestión de Agentes</span>
+        </div>
+      </div>
+    </div>
+    <div class="sesion">
+      <span id="usuario-email"></span>
+      <button id="btn-logout" class="btn-texto">Salir</button>
+    </div>
+  </header>
+
+  <div class="cuerpo-app">
+    <nav class="menu-lateral" id="nav-pestanas">
+      <button class="pestana activa" data-vista="resumen">Resumen</button>
+      <button class="pestana" data-vista="cargar">Cargar Gestiones</button>
+    </nav>
+
+    <main>
+      <!-- ---------- VISTA: RESUMEN ---------- -->
+      <section id="vista-resumen" class="vista">
+        <div class="fila-encabezado-vista">
+          <h2>Resumen de Gestiones</h2>
+        </div>
+
+        <div class="fila-titulo-selector">
+          <span class="etiqueta-actualizado">Rango</span>
+          <select id="selector-rango-resumen">
+            <option value="7">Últimos 7 días</option>
+            <option value="30" selected>Últimos 30 días</option>
+            <option value="90">Últimos 90 días</option>
+          </select>
+        </div>
+
+        <div class="tarjetas-kpi" id="kpis-resumen"></div>
+
+        <div class="grilla-graficos">
+          <details class="tarjeta-grafico ancho-completo desplegable" open>
+            <summary>Volumen de gestiones por día</summary>
+            <canvas id="grafico-volumen-dia"></canvas>
+          </details>
+          <details class="tarjeta-grafico desplegable" open>
+            <summary>Efectividad de contacto (Total)</summary>
+            <canvas id="grafico-efectividad-total"></canvas>
+          </details>
+          <details class="tarjeta-grafico desplegable" open>
+            <summary>Gestiones por canal</summary>
+            <canvas id="grafico-por-canal"></canvas>
+          </details>
+          <details class="tarjeta-grafico ancho-completo desplegable" open>
+            <summary>Resultados de gestión (Efecto)</summary>
+            <canvas id="grafico-por-efecto"></canvas>
+          </details>
+        </div>
+
+        <details class="tabla-contenedor desplegable" open>
+          <summary>Detalle por agente</summary>
+          <table id="tabla-por-agente">
+            <thead>
+              <tr>
+                <th>Agente</th><th>Empresa</th><th>Gestiones</th>
+                <th>Contacto directo</th><th>Contacto indirecto</th><th>Sin contacto</th>
+                <th>% Efectividad</th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </details>
+      </section>
+
+      <!-- ---------- VISTA: CARGAR GESTIONES ---------- -->
+      <section id="vista-cargar" class="vista oculto">
+        <h2>Cargar Gestiones del día</h2>
+        <p class="ayuda">Subí el archivo "Detalle de Gestiones" del día anterior (TSV/CSV). Si volvés a subir un archivo con la misma fecha, se reemplazan esas filas — no se duplican.</p>
+
+        <form id="form-cargar-gestiones" class="tarjeta-carga">
+          <label class="campo-archivo">Archivo de Gestiones <input type="file" id="archivo-gestiones" accept=".tsv,.csv,.txt" required></label>
+          <button type="submit" id="btn-cargar-gestiones">Cargar Gestiones</button>
+          <p id="carga-estado" class="mensaje-estado"></p>
+        </form>
+
+        <div class="tabla-contenedor">
+          <h3>Historial de cargas</h3>
+          <table id="tabla-log">
+            <thead><tr><th>Fecha</th><th>Usuario</th><th>Estado</th><th>Detalle</th></tr></thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </section>
+    </main>
+  </div>
+</div>
+
+<script src="config.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
