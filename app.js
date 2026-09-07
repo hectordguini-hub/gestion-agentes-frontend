@@ -40,8 +40,20 @@ function mostrarApp(session) {
   document.getElementById('pantalla-login').classList.add('oculto');
   document.getElementById('app').classList.remove('oculto');
   document.getElementById('usuario-email').textContent = session.user.email;
+  cargarSelectorUnidadNegocio();
   cargarVistaResumen();
   cargarLogCargas();
+}
+
+async function cargarSelectorUnidadNegocio() {
+  const { data } = await supabaseClient.rpc('unidades_negocio_disponibles');
+  const select = document.getElementById('selector-unidad-resumen');
+  (data || []).forEach(f => {
+    const opt = document.createElement('option');
+    opt.value = f.unidad_negocio;
+    opt.textContent = f.unidad_negocio;
+    select.appendChild(opt);
+  });
 }
 
 // ============================================================
@@ -72,17 +84,19 @@ function fechaDesdeRango(dias) {
 }
 
 document.getElementById('selector-rango-resumen').addEventListener('change', cargarVistaResumen);
+document.getElementById('selector-unidad-resumen').addEventListener('change', cargarVistaResumen);
 
 async function cargarVistaResumen() {
   const dias = Number(document.getElementById('selector-rango-resumen').value) || 30;
   const fechaDesde = fechaDesdeRango(dias);
+  const unidadNegocio = document.getElementById('selector-unidad-resumen').value || null;
 
   const [kpisResp, porAgenteDiaResp, efectividadResp, porCanalResp, porEfectoResp] = await Promise.all([
-    supabaseClient.rpc('gestiones_kpis', { fecha_desde: fechaDesde }),
-    supabaseClient.rpc('gestiones_por_agente_dia', { fecha_desde: fechaDesde }),
-    supabaseClient.rpc('gestiones_efectividad_por_agente', { fecha_desde: fechaDesde }),
-    supabaseClient.rpc('gestiones_por_canal', { fecha_desde: fechaDesde }),
-    supabaseClient.rpc('gestiones_por_efecto', { fecha_desde: fechaDesde }),
+    supabaseClient.rpc('gestiones_kpis', { fecha_desde: fechaDesde, p_unidad_negocio: unidadNegocio }),
+    supabaseClient.rpc('gestiones_por_agente_dia', { fecha_desde: fechaDesde, p_unidad_negocio: unidadNegocio }),
+    supabaseClient.rpc('gestiones_efectividad_por_agente', { fecha_desde: fechaDesde, p_unidad_negocio: unidadNegocio }),
+    supabaseClient.rpc('gestiones_por_canal', { fecha_desde: fechaDesde, p_unidad_negocio: unidadNegocio }),
+    supabaseClient.rpc('gestiones_por_efecto', { fecha_desde: fechaDesde, p_unidad_negocio: unidadNegocio }),
   ]);
 
   const kpis = (kpisResp.data && kpisResp.data[0]) || {};
