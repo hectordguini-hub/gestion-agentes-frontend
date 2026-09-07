@@ -54,6 +54,8 @@
     <nav class="menu-lateral" id="nav-pestanas">
       <button class="pestana activa" data-vista="resumen">Resumen</button>
       <button class="pestana" data-vista="cargar">Cargar Gestiones</button>
+      <button class="pestana" data-vista="cargar-recupero">Cargar Recupero</button>
+      <button class="pestana" data-vista="cargar-cartera">Cargar Cartera</button>
     </nav>
 
     <main>
@@ -122,6 +124,57 @@
         <div class="tabla-contenedor">
           <h3>Historial de cargas</h3>
           <table id="tabla-log">
+            <thead><tr><th>Fecha</th><th>Usuario</th><th>Estado</th><th>Detalle</th></tr></thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- ---------- VISTA: CARGAR RECUPERO ---------- -->
+      <section id="vista-cargar-recupero" class="vista oculto">
+        <h2>Cargar Recupero del día</h2>
+        <p class="ayuda">Subí el archivo de Recupero del día anterior (XLSX). Si volvés a subir un archivo con las mismas fechas de pago, se reemplazan esas filas — no se duplican. Después de cargar, el sistema marca automáticamente como "Pago vigente" las fichas de Cartera que tengan un pago este mes.</p>
+
+        <form id="form-cargar-recupero" class="tarjeta-carga">
+          <label class="campo-archivo">Archivo de Recupero <input type="file" id="archivo-recupero" accept=".xlsx" required></label>
+          <button type="submit" id="btn-cargar-recupero">Cargar Recupero</button>
+          <p id="recupero-estado" class="mensaje-estado"></p>
+        </form>
+
+        <div class="tabla-contenedor">
+          <h3>Historial de cargas</h3>
+          <table id="tabla-log-recupero">
+            <thead><tr><th>Fecha</th><th>Usuario</th><th>Estado</th><th>Detalle</th></tr></thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- ---------- VISTA: CARGAR CARTERA ---------- -->
+      <section id="vista-cargar-cartera" class="vista oculto">
+        <h2>Cargar Cartera asignada (semanal)</h2>
+        <p class="ayuda">Subí el archivo semanal de Cartera para UNA unidad de negocio a la vez — el archivo solo debe traer las fichas nuevas de esa semana. El sistema asigna el box automáticamente: si el DNI ya tenía ficha en esa unidad, va al mismo box; si es un DNI nuevo, va al box más atrasado según su carga horaria. Para ON CITY JUDICIAL y CFN JUDICIAL, además, cada carga revisa toda la cartera y reasigna a GERENCIAR RECUPERA los casos que ya superaron los 1081 días desde la Fecha Inicio Estudio.</p>
+
+        <form id="form-cargar-cartera" class="tarjeta-carga">
+          <label class="campo-archivo">
+            Unidad de negocio
+            <select id="cartera-unidad-negocio" required>
+              <option value="" disabled selected>Elegí una unidad</option>
+              <option value="ON CITY JUDICIAL">ON CITY JUDICIAL</option>
+              <option value="CFN JUDICIAL">CFN JUDICIAL</option>
+              <option value="ON CITY TERCERIZADO">ON CITY TERCERIZADO</option>
+              <option value="CFN TERCERIZADO">CFN TERCERIZADO</option>
+              <option value="GERENCIAR RECUPERA">GERENCIAR RECUPERA</option>
+            </select>
+          </label>
+          <label class="campo-archivo">Archivo de Cartera (fichas nuevas de la semana) <input type="file" id="archivo-cartera" accept=".xlsx" required></label>
+          <button type="submit" id="btn-cargar-cartera">Cargar Cartera</button>
+          <p id="cartera-estado" class="mensaje-estado"></p>
+        </form>
+
+        <div class="tabla-contenedor">
+          <h3>Historial de cargas</h3>
+          <table id="tabla-log-cartera">
             <thead><tr><th>Fecha</th><th>Usuario</th><th>Estado</th><th>Detalle</th></tr></thead>
             <tbody></tbody>
           </table>
