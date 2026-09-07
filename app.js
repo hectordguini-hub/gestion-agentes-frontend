@@ -245,16 +245,99 @@ async function esperarFinalizacionYRefrescar(estadoEl, horaInicioIso, mensajeExi
 }
 
 async function cargarLogCargas() {
+  // cargas_log es una sola tabla compartida por los 3 tipos de carga
+  // (Gestiones, Recupero, Cartera) — se muestra el mismo historial en
+  // las 3 pestañas, así siempre se ve todo lo que se subió, sin
+  // importar desde qué pestaña se hizo.
   const { data: log } = await supabaseClient
     .from('cargas_log')
     .select('subido_en, subido_por, estado, mensaje')
     .order('subido_en', { ascending: false })
     .limit(20);
-  document.querySelector('#tabla-log tbody').innerHTML = (log || []).map(f => `
+  const filasHtml = (log || []).map(f => `
     <tr>
       <td>${new Date(f.subido_en).toLocaleString('es-AR')}</td>
       <td>${f.subido_por || ''}</td>
       <td>${f.estado}</td>
       <td>${f.mensaje || ''}</td>
     </tr>`).join('');
+  ['#tabla-log', '#tabla-log-recupero', '#tabla-log-cartera'].forEach(selector => {
+    const tbody = document.querySelector(`${selector} tbody`);
+    if (tbody) tbody.innerHTML = filasHtml;
+  });
 }
+
+// ============================================================
+// CARGA DE RECUPERO
+// ============================================================
+document.getElementById('form-cargar-recupero').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const estadoEl = document.getElementById('recupero-estado');
+  const boton = document.getElementById('btn-cargar-recupero');
+  estadoEl.textContent = 'Subiendo…';
+  estadoEl.className = 'mensaje-estado';
+  boton.disabled = true;
+  const horaInicio = new Date().toISOString();
+
+  const { data: { session } } = await supabaseClient.auth.getSession();
+  const formData = new FormData();
+  formData.append('archivo', document.getElementById('archivo-recupero').files[0]);
+
+  try {
+    const respuesta = await fetch(`${CONFIG.BACKEND_URL}/upload-recupero`, {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${session.access_token}` },
+      body: formData,
+    });
+    const resultado = await respuesta.json();
+    if (!respuesta.ok) throw new Error(resultado.detail || 'Error desconocido');
+
+    estadoEl.textContent = 'Procesando… esta pantalla se va a actualizar sola cuando termine.';
+    estadoEl.className = 'mensaje-estado ok';
+    cargarLogCargas();
+    esperarFinalizacionYRefrescar(estadoEl, horaInicio, 'Listo — el Recupero ya está cargado.');
+  } catch (err) {
+    estadoEl.textContent = `Error: ${err.message}`;
+    estadoEl.className = 'mensaje-estado error';
+  } finally {
+    boton.disabled = false;
+  }
+});
+
+// ============================================================
+// CARGA DE CARTERA (semanal, por unidad de negocio)
+// ============================================================
+document.getElementById('form-cargar-cartera').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const estadoEl = document.getElementById('cartera-estado');
+  const boton = document.getElementById('btn-cargar-cartera');
+  estadoEl.textContent = 'Subiendo…';
+  estadoEl.className = 'mensaje-estado';
+  boton.disabled = true;
+  const horaInicio = new Date().toISOString();
+
+  const { data: { session } } = await supabaseClient.auth.getSession();
+  const formData = new FormData();
+  formData.append('archivo', document.getElementById('archivo-cartera').files[0]);
+  formData.append('unidad_negocio', document.getElementById('cartera-unidad-negocio').value);
+
+  try {
+    const respuesta = await fetch(`${CONFIG.BACKEND_URL}/upload-cartera`, {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${session.access_token}` },
+      body: formData,
+    });
+    const resultado = await respuesta.json();
+    if (!respuesta.ok) throw new Error(resultado.detail || 'Error desconocido');
+
+    estadoEl.textContent = 'Procesando… esta pantalla se va a actualizar sola cuando termine (puede tardar un poco más porque también calcula la reasignación por días).';
+    estadoEl.className = 'mensaje-estado ok';
+    cargarLogCargas();
+    esperarFinalizacionYRefrescar(estadoEl, horaInicio, 'Listo — la Cartera ya está cargada.');
+  } catch (err) {
+    estadoEl.textContent = `Error: ${err.message}`;
+    estadoEl.className = 'mensaje-estado error';
+  } finally {
+    boton.disabled = false;
+  }
+});
