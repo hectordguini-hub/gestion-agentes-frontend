@@ -191,28 +191,51 @@ document.getElementById('btn-toggle-menu').addEventListener('click', () => {
 // ============================================================
 // VISTA: RESUMEN
 // ============================================================
-function fechaDesdeRango(dias) {
+function llenarSelectorMeses() {
+  const select = document.getElementById('selector-rango-resumen');
   const hoy = new Date();
-  const fecha = new Date(hoy);
-  fecha.setDate(fecha.getDate() - dias);
-  return fecha.toISOString().slice(0, 10);
+  const nombresMes = ['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'];
+  for (let i = 0; i < 6; i++) {
+    const d = new Date(hoy.getFullYear(), hoy.getMonth() - i, 1);
+    const valor = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+    const opt = document.createElement('option');
+    opt.value = valor;
+    opt.textContent = i === 0 ? `${nombresMes[d.getMonth()]} ${d.getFullYear()} (actual)` : `${nombresMes[d.getMonth()]} ${d.getFullYear()}`;
+    if (i === 0) opt.selected = true;
+    select.appendChild(opt);
+  }
+}
+llenarSelectorMeses();
+
+function fechasDelMesSeleccionado() {
+  const [anio, mes] = document.getElementById('selector-rango-resumen').value.split('-').map(Number);
+  const hoy = new Date();
+  const esMesActual = (anio === hoy.getFullYear() && mes === hoy.getMonth() + 1);
+  const desde = new Date(anio, mes - 1, 1);
+  // Si es el mes en curso, corta hoy; si es un mes anterior, va hasta el ultimo dia de ese mes.
+  const hasta = esMesActual ? hoy : new Date(anio, mes, 0);
+  const aISO = f => f.toISOString().slice(0, 10);
+  return { fechaDesde: aISO(desde), fechaHasta: aISO(hasta) };
 }
 
 document.getElementById('selector-rango-resumen').addEventListener('change', cargarVistaResumen);
 document.getElementById('selector-unidad-resumen').addEventListener('change', cargarVistaResumen);
 
 async function cargarVistaResumen() {
-  const dias = Number(document.getElementById('selector-rango-resumen').value) || 30;
-  const fechaDesde = fechaDesdeRango(dias);
+  const { fechaDesde, fechaHasta } = fechasDelMesSeleccionado();
   const unidadNegocio = document.getElementById('selector-unidad-resumen').value || null;
 
-  const [kpisResp, porAgenteDiaResp, efectividadResp, porCanalResp, porEfectoResp] = await Promise.all([
-    supabaseClient.rpc('gestiones_kpis', { fecha_desde: fechaDesde, p_unidad_negocio: unidadNegocio }),
-    supabaseClient.rpc('gestiones_por_agente_dia', { fecha_desde: fechaDesde, p_unidad_negocio: unidadNegocio }),
-    supabaseClient.rpc('gestiones_efectividad_por_agente', { fecha_desde: fechaDesde, p_unidad_negocio: unidadNegocio }),
-    supabaseClient.rpc('gestiones_por_canal', { fecha_desde: fechaDesde, p_unidad_negocio: unidadNegocio }),
-    supabaseClient.rpc('gestiones_por_efecto', { fecha_desde: fechaDesde, p_unidad_negocio: unidadNegocio }),
+  const [kpisResp, porAgenteDiaResp, efectividadResp, porCanalResp, porEfectoResp, extendidoResp] = await Promise.all([
+    supabaseClient.rpc('gestiones_kpis', { fecha_desde: fechaDesde, fecha_hasta: fechaHasta, p_unidad_negocio: unidadNegocio }),
+    supabaseClient.rpc('gestiones_por_agente_dia', { fecha_desde: fechaDesde, fecha_hasta: fechaHasta, p_unidad_negocio: unidadNegocio }),
+    supabaseClient.rpc('gestiones_efectividad_por_agente', { fecha_desde: fechaDesde, fecha_hasta: fechaHasta, p_unidad_negocio: unidadNegocio }),
+    supabaseClient.rpc('gestiones_por_canal', { fecha_desde: fechaDesde, fecha_hasta: fechaHasta, p_unidad_negocio: unidadNegocio }),
+    supabaseClient.rpc('gestiones_por_efecto', { fecha_desde: fechaDesde, fecha_hasta: fechaHasta, p_unidad_negocio: unidadNegocio }),
+    supabaseClient.rpc('gestiones_extendido_por_agente', { fecha_desde: fechaDesde, fecha_hasta: fechaHasta, p_unidad_negocio: unidadNegocio }),
   ]);
+
+  const extendidoPorUsuario = {};
+  (extendidoResp.data || []).forEach(f => { extendidoPorUsuario[f.usuario] = f; });
 
   const kpis = (kpisResp.data && kpisResp.data[0]) || {};
   const porAgenteDia = porAgenteDiaResp.data || [];
@@ -292,9 +315,12 @@ async function cargarVistaResumen() {
     else if (f.tipo_contacto === 'NO CONTACTO') porAgente[clave].sinContacto += Number(f.cantidad);
   });
   const filasAgente = Object.values(porAgente).sort((a, b) => b.gestiones - a.gestiones);
+  const formateadorMonedaRecupero = new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', maximumFractionDigits: 0 });
   document.querySelector('#tabla-por-agente tbody').innerHTML = filasAgente.map(a => {
     const totalContactoAgente = a.directo + a.indirecto + a.sinContacto;
     const pct = totalContactoAgente ? a.directo / totalContactoAgente : 0;
+    const ext = extendidoPorUsuario[a.usuario] || { promesas: 0, promesas_cumplidas: 0, recupero_total: 0 };
+    const pctCumplidas = ext.promesas ? ext.promesas_cumplidas / ext.promesas : 0;
     return `<tr>
       <td>${a.usuario}</td>
       <td>${a.empresa || ''}</td>
@@ -303,6 +329,10 @@ async function cargarVistaResumen() {
       <td class="numero">${formateadorNumero.format(a.indirecto)}</td>
       <td class="numero">${formateadorNumero.format(a.sinContacto)}</td>
       <td class="numero">${formateadorPorcentaje.format(pct)}</td>
+      <td class="numero">${formateadorNumero.format(ext.promesas)}</td>
+      <td class="numero">${formateadorNumero.format(ext.promesas_cumplidas)}</td>
+      <td class="numero">${formateadorPorcentaje.format(pctCumplidas)}</td>
+      <td class="numero">${formateadorMonedaRecupero.format(ext.recupero_total)}</td>
     </tr>`;
   }).join('');
 }
