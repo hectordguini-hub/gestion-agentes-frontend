@@ -75,9 +75,7 @@
           </select>
           <span class="etiqueta-actualizado">Rango</span>
           <select id="selector-rango-resumen">
-            <option value="7">Últimos 7 días</option>
-            <option value="30" selected>Últimos 30 días</option>
-            <option value="90">Últimos 90 días</option>
+            <!-- Se llena solo en JS con el mes actual + los 5 anteriores -->
           </select>
         </div>
 
@@ -110,6 +108,8 @@
                 <th>Agente</th><th>Empresa</th><th>Gestiones</th>
                 <th>Contacto directo</th><th>Contacto indirecto</th><th>Sin contacto</th>
                 <th>% Efectividad</th>
+                <th>Promesas</th><th>Promesas cumplidas</th><th>% Cumplidas</th>
+                <th>Recupero total</th>
               </tr>
             </thead>
             <tbody></tbody>
