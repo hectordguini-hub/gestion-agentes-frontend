@@ -95,8 +95,25 @@ async function cargarVistaCarteraResumen() {
       <td class="numero">${formateadorPorcentaje.format(f.pct_saldo)}</td>
     </tr>`;
 
-  document.querySelector('#tabla-cartera-por-box tbody').innerHTML = (porBoxResp.data || []).map(filaHtml).join('');
-  document.querySelector('#tabla-cartera-por-rango tbody').innerHTML = (porRangoResp.data || []).map(filaHtml).join('');
+  const filaTotalHtml = filas => {
+    if (!filas.length) return '';
+    const sum = campo => filas.reduce((acc, f) => acc + Number(f[campo] || 0), 0);
+    return `
+      <tr class="fila-mes-actual">
+        <td><strong>Total</strong></td>
+        <td class="numero"><strong>${formateadorNumero.format(sum('creditos'))}</strong></td>
+        <td class="numero"><strong>${formateadorNumero.format(sum('dni'))}</strong></td>
+        <td class="numero"><strong>${formateadorMoneda.format(sum('saldo'))}</strong></td>
+        <td class="numero"><strong>${formateadorPorcentaje.format(sum('pct_creditos'))}</strong></td>
+        <td class="numero"><strong>${formateadorPorcentaje.format(sum('pct_dni'))}</strong></td>
+        <td class="numero"><strong>${formateadorPorcentaje.format(sum('pct_saldo'))}</strong></td>
+      </tr>`;
+  };
+
+  const filasBox = porBoxResp.data || [];
+  const filasRango = porRangoResp.data || [];
+  document.querySelector('#tabla-cartera-por-box tbody').innerHTML = filasBox.map(filaHtml).join('') + filaTotalHtml(filasBox);
+  document.querySelector('#tabla-cartera-por-rango tbody').innerHTML = filasRango.map(filaHtml).join('') + filaTotalHtml(filasRango);
 }
 
 // ============================================================
