@@ -53,6 +53,7 @@
   <div class="cuerpo-app">
     <nav class="menu-lateral" id="nav-pestanas">
       <button class="pestana activa" data-vista="resumen">Resumen</button>
+      <button class="pestana" data-vista="cartera-resumen">Cartera</button>
       <button class="pestana" data-vista="cargar">Cargar Gestiones</button>
       <button class="pestana" data-vista="cargar-recupero">Cargar Recupero</button>
       <button class="pestana" data-vista="cargar-cartera">Cargar Cartera</button>
@@ -109,6 +110,38 @@
                 <th>% Efectividad</th>
               </tr>
             </thead>
+            <tbody></tbody>
+          </table>
+        </details>
+      </section>
+
+      <!-- ---------- VISTA: CARTERA (composicion y resumen) ---------- -->
+      <section id="vista-cartera-resumen" class="vista oculto">
+        <div class="fila-titulo-selector">
+          <span class="etiqueta-actualizado">Unidad de negocio</span>
+          <select id="cartera-resumen-unidad">
+            <option value="" disabled selected>Elegí una unidad</option>
+          </select>
+          <label style="display:flex; align-items:center; gap:0.4rem; font-size:0.85rem; color:var(--texto-tenue);">
+            <input type="checkbox" id="cartera-resumen-incluir-pagos" checked>
+            Incluir fichas con pago vigente
+          </label>
+        </div>
+
+        <div class="tarjetas-kpi" id="cartera-resumen-totales"></div>
+
+        <details class="tabla-contenedor desplegable" open>
+          <summary>Composición por BOX</summary>
+          <table id="tabla-cartera-por-box">
+            <thead><tr><th>BOX</th><th class="numero">Créditos/Fichas</th><th class="numero">DNI (sin duplicar)</th><th class="numero">Saldo</th><th class="numero">% s/ créditos</th><th class="numero">% s/ DNI</th><th class="numero">% s/ saldo</th></tr></thead>
+            <tbody></tbody>
+          </table>
+        </details>
+
+        <details class="tabla-contenedor desplegable" open>
+          <summary>Composición por rango (tramo de mora)</summary>
+          <table id="tabla-cartera-por-rango">
+            <thead><tr><th>Rango</th><th class="numero">Créditos/Fichas</th><th class="numero">DNI (sin duplicar)</th><th class="numero">Saldo</th><th class="numero">% s/ créditos</th><th class="numero">% s/ DNI</th><th class="numero">% s/ saldo</th></tr></thead>
             <tbody></tbody>
           </table>
         </details>
