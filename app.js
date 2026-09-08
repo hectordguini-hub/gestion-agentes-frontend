@@ -116,6 +116,61 @@ async function cargarVistaCarteraResumen() {
   document.querySelector('#tabla-cartera-por-rango tbody').innerHTML = filasRango.map(filaHtml).join('') + filaTotalHtml(filasRango);
 }
 
+document.getElementById('btn-descargar-cartera').addEventListener('click', async () => {
+  const unidad = document.getElementById('cartera-resumen-unidad').value;
+  const estadoEl = document.getElementById('cartera-descarga-estado');
+  if (!unidad) {
+    estadoEl.textContent = 'Elegí una unidad de negocio primero.';
+    estadoEl.className = 'mensaje-estado error';
+    return;
+  }
+  const boton = document.getElementById('btn-descargar-cartera');
+  boton.disabled = true;
+  estadoEl.className = 'mensaje-estado';
+
+  try {
+    // Se pagina de a 1000 filas (limite de Supabase por consulta) hasta
+    // traer toda la cartera de la unidad, que en algunas unidades supera
+    // las 50.000 fichas.
+    const filas = [];
+    const tamanoPagina = 1000;
+    let desde = 0;
+    while (true) {
+      estadoEl.textContent = `Descargando… ${filas.length} fichas traídas`;
+      const { data, error } = await supabaseClient
+        .from('cartera_asignada')
+        .select('compania, ficha, box, nro_documento, nombre_causa, deuda_total, fecha_inicio_estudio, provincia, rango, estado')
+        .eq('unidad_negocio', unidad)
+        .order('id', { ascending: true })
+        .range(desde, desde + tamanoPagina - 1);
+      if (error) throw new Error(error.message);
+      filas.push(...data);
+      if (data.length < tamanoPagina) break;
+      desde += tamanoPagina;
+    }
+
+    if (filas.length === 0) {
+      estadoEl.textContent = 'No hay fichas cargadas todavía para esta unidad.';
+      estadoEl.className = 'mensaje-estado error';
+      return;
+    }
+
+    const hoja = XLSX.utils.json_to_sheet(filas);
+    const libro = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(libro, hoja, unidad.slice(0, 31));
+    const nombreArchivo = `Cartera_${unidad.replace(/\s+/g, '_')}_${new Date().toISOString().slice(0, 10)}.xlsx`;
+    XLSX.writeFile(libro, nombreArchivo);
+
+    estadoEl.textContent = `Listo — ${filas.length} fichas descargadas.`;
+    estadoEl.className = 'mensaje-estado ok';
+  } catch (err) {
+    estadoEl.textContent = `Error: ${err.message}`;
+    estadoEl.className = 'mensaje-estado error';
+  } finally {
+    boton.disabled = false;
+  }
+});
+
 // ============================================================
 // NAVEGACIÓN
 // ============================================================
@@ -335,11 +390,49 @@ async function cargarLogCargas() {
       <td>${f.estado}</td>
       <td>${f.mensaje || ''}</td>
     </tr>`).join('');
-  ['#tabla-log', '#tabla-log-recupero', '#tabla-log-cartera'].forEach(selector => {
+  ['#tabla-log', '#tabla-log-recupero', '#tabla-log-cartera', '#tabla-log-baja-cartera'].forEach(selector => {
     const tbody = document.querySelector(`${selector} tbody`);
     if (tbody) tbody.innerHTML = filasHtml;
   });
 }
+
+// ============================================================
+// DAR DE BAJA CARTERA (mensual, unidades Tercerizadas)
+// ============================================================
+document.getElementById('form-baja-cartera').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const estadoEl = document.getElementById('baja-cartera-estado');
+  const boton = document.getElementById('btn-baja-cartera');
+  estadoEl.textContent = 'Subiendo…';
+  estadoEl.className = 'mensaje-estado';
+  boton.disabled = true;
+  const horaInicio = new Date().toISOString();
+
+  const { data: { session } } = await supabaseClient.auth.getSession();
+  const formData = new FormData();
+  formData.append('archivo', document.getElementById('archivo-baja-cartera').files[0]);
+  formData.append('unidad_negocio', document.getElementById('baja-unidad-negocio').value);
+
+  try {
+    const respuesta = await fetch(`${CONFIG.BACKEND_URL}/baja-cartera`, {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${session.access_token}` },
+      body: formData,
+    });
+    const resultado = await respuesta.json();
+    if (!respuesta.ok) throw new Error(resultado.detail || 'Error desconocido');
+
+    estadoEl.textContent = 'Procesando… esta pantalla se va a actualizar sola cuando termine.';
+    estadoEl.className = 'mensaje-estado ok';
+    cargarLogCargas();
+    esperarFinalizacionYRefrescar(estadoEl, horaInicio, 'Listo — las bajas ya se aplicaron.');
+  } catch (err) {
+    estadoEl.textContent = `Error: ${err.message}`;
+    estadoEl.className = 'mensaje-estado error';
+  } finally {
+    boton.disabled = false;
+  }
+});
 
 // ============================================================
 // CARGA DE RECUPERO
