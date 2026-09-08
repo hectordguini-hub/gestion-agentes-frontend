@@ -47,13 +47,56 @@ function mostrarApp(session) {
 
 async function cargarSelectorUnidadNegocio() {
   const { data } = await supabaseClient.rpc('unidades_negocio_disponibles');
-  const select = document.getElementById('selector-unidad-resumen');
+  const selects = [document.getElementById('selector-unidad-resumen'), document.getElementById('cartera-resumen-unidad')];
   (data || []).forEach(f => {
-    const opt = document.createElement('option');
-    opt.value = f.unidad_negocio;
-    opt.textContent = f.unidad_negocio;
-    select.appendChild(opt);
+    selects.forEach((select, i) => {
+      const opt = document.createElement('option');
+      opt.value = f.unidad_negocio;
+      opt.textContent = f.unidad_negocio;
+      select.appendChild(opt);
+    });
   });
+}
+
+// ============================================================
+// VISTA: CARTERA (composicion y resumen)
+// ============================================================
+document.getElementById('cartera-resumen-unidad').addEventListener('change', cargarVistaCarteraResumen);
+document.getElementById('cartera-resumen-incluir-pagos').addEventListener('change', cargarVistaCarteraResumen);
+
+async function cargarVistaCarteraResumen() {
+  const unidad = document.getElementById('cartera-resumen-unidad').value;
+  if (!unidad) return;
+  const incluirPagos = document.getElementById('cartera-resumen-incluir-pagos').checked;
+
+  const [totalesResp, porBoxResp, porRangoResp] = await Promise.all([
+    supabaseClient.rpc('cartera_totales', { p_unidad_negocio: unidad, p_incluir_pagos_vigentes: incluirPagos }),
+    supabaseClient.rpc('cartera_resumen_por_box', { p_unidad_negocio: unidad, p_incluir_pagos_vigentes: incluirPagos }),
+    supabaseClient.rpc('cartera_resumen_por_rango', { p_unidad_negocio: unidad, p_incluir_pagos_vigentes: incluirPagos }),
+  ]);
+
+  const totales = (totalesResp.data && totalesResp.data[0]) || {};
+  const formateadorMoneda = new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', maximumFractionDigits: 0 });
+
+  document.getElementById('cartera-resumen-totales').innerHTML = [
+    { etiqueta: 'Créditos/Fichas totales', valor: formateadorNumero.format(totales.creditos || 0) },
+    { etiqueta: 'DNI totales (sin duplicar)', valor: formateadorNumero.format(totales.dni || 0) },
+    { etiqueta: 'Saldo total', valor: formateadorMoneda.format(totales.saldo || 0) },
+  ].map(k => `<div class="tarjeta-kpi"><span class="valor">${k.valor}</span><span class="etiqueta">${k.etiqueta}</span></div>`).join('');
+
+  const filaHtml = f => `
+    <tr>
+      <td>${f.box || f.rango}</td>
+      <td class="numero">${formateadorNumero.format(f.creditos)}</td>
+      <td class="numero">${formateadorNumero.format(f.dni)}</td>
+      <td class="numero">${formateadorMoneda.format(f.saldo)}</td>
+      <td class="numero">${formateadorPorcentaje.format(f.pct_creditos)}</td>
+      <td class="numero">${formateadorPorcentaje.format(f.pct_dni)}</td>
+      <td class="numero">${formateadorPorcentaje.format(f.pct_saldo)}</td>
+    </tr>`;
+
+  document.querySelector('#tabla-cartera-por-box tbody').innerHTML = (porBoxResp.data || []).map(filaHtml).join('');
+  document.querySelector('#tabla-cartera-por-rango tbody').innerHTML = (porRangoResp.data || []).map(filaHtml).join('');
 }
 
 // ============================================================
