@@ -542,6 +542,7 @@ document.getElementById('form-cargar-recupero').addEventListener('submit', async
   const { data: { session } } = await supabaseClient.auth.getSession();
   const formData = new FormData();
   formData.append('archivo', document.getElementById('archivo-recupero').files[0]);
+  formData.append('unidad_negocio', document.getElementById('recupero-unidad-negocio').value);
 
   try {
     const respuesta = await fetch(`${CONFIG.BACKEND_URL}/upload-recupero`, {
