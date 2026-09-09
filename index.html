@@ -196,6 +196,15 @@
         <p class="ayuda">Subí el archivo de Recupero del día anterior (XLSX). Si volvés a subir un archivo con las mismas fechas de pago, se reemplazan esas filas — no se duplican. Después de cargar, el sistema marca automáticamente como "Pago vigente" las fichas de Cartera que tengan un pago este mes.</p>
 
         <form id="form-cargar-recupero" class="tarjeta-carga">
+          <label class="campo-archivo">
+            Unidad de negocio
+            <select id="recupero-unidad-negocio" required>
+              <option value="JUDICIAL_AUTO" selected>JUDICIAL (Megatone + CFN combinado, automático por Compañía)</option>
+              <option value="ON CITY TERCERIZADO">ON CITY TERCERIZADO</option>
+              <option value="CFN TERCERIZADO">CFN TERCERIZADO</option>
+              <option value="GERENCIAR RECUPERA">GERENCIAR RECUPERA</option>
+            </select>
+          </label>
           <label class="campo-archivo">Archivo de Recupero <input type="file" id="archivo-recupero" accept=".xlsx" required></label>
           <button type="submit" id="btn-cargar-recupero">Cargar Recupero</button>
           <p id="recupero-estado" class="mensaje-estado"></p>
