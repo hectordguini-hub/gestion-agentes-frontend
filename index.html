@@ -115,6 +115,25 @@
             <tbody></tbody>
           </table>
         </details>
+
+        <!-- ---------- EMBUDO DE EFECTIVIDAD Y CONTACTABILIDAD ---------- -->
+        <p id="embudo-mensaje-sin-unidad" class="ayuda">Elegí una unidad de negocio puntual (no "Todas") para ver el embudo de efectividad y la contactabilidad de la cartera.</p>
+        <div id="embudo-contenido" class="oculto">
+          <details class="tabla-contenedor desplegable" open>
+            <summary>Embudo de efectividad (objetivo vs. real)</summary>
+            <table id="tabla-embudo">
+              <thead><tr><th>Etapa</th><th class="numero">Cantidad</th><th class="numero">% Real</th><th class="numero">% Objetivo</th></tr></thead>
+              <tbody></tbody>
+            </table>
+          </details>
+
+          <div class="grilla-graficos">
+            <details class="tarjeta-grafico desplegable" open>
+              <summary>Contactabilidad de la Cartera</summary>
+              <canvas id="grafico-contactabilidad"></canvas>
+            </details>
+          </div>
+        </div>
       </section>
 
       <!-- ---------- VISTA: CARTERA (composicion y resumen) ---------- -->
