@@ -225,13 +225,14 @@ async function cargarVistaResumen() {
   const { fechaDesde, fechaHasta } = fechasDelMesSeleccionado();
   const unidadNegocio = document.getElementById('selector-unidad-resumen').value || null;
 
-  const [kpisResp, porAgenteDiaResp, efectividadResp, porCanalResp, porEfectoResp, extendidoResp] = await Promise.all([
+  const [kpisResp, porAgenteDiaResp, efectividadResp, porCanalResp, porEfectoResp, extendidoResp, masividadResp] = await Promise.all([
     supabaseClient.rpc('gestiones_kpis', { fecha_desde: fechaDesde, fecha_hasta: fechaHasta, p_unidad_negocio: unidadNegocio }),
     supabaseClient.rpc('gestiones_por_agente_dia', { fecha_desde: fechaDesde, fecha_hasta: fechaHasta, p_unidad_negocio: unidadNegocio }),
     supabaseClient.rpc('gestiones_efectividad_por_agente', { fecha_desde: fechaDesde, fecha_hasta: fechaHasta, p_unidad_negocio: unidadNegocio }),
     supabaseClient.rpc('gestiones_por_canal', { fecha_desde: fechaDesde, fecha_hasta: fechaHasta, p_unidad_negocio: unidadNegocio }),
     supabaseClient.rpc('gestiones_por_efecto', { fecha_desde: fechaDesde, fecha_hasta: fechaHasta, p_unidad_negocio: unidadNegocio }),
     supabaseClient.rpc('gestiones_extendido_por_agente', { fecha_desde: fechaDesde, fecha_hasta: fechaHasta, p_unidad_negocio: unidadNegocio }),
+    supabaseClient.rpc('gestiones_masividad', { fecha_desde: fechaDesde, fecha_hasta: fechaHasta, p_unidad_negocio: unidadNegocio }),
   ]);
 
   const extendidoPorUsuario = {};
@@ -246,12 +247,15 @@ async function cargarVistaResumen() {
   // ---- KPIs ----
   const totalContacto = Number(kpis.contacto_directo || 0) + Number(kpis.contacto_indirecto || 0) + Number(kpis.sin_contacto || 0);
   const pctEfectividad = totalContacto ? (Number(kpis.contacto_directo || 0) / totalContacto) : 0;
+  const masividad = (masividadResp.data && masividadResp.data[0]) || {};
+  const formateadorMonedaMasividad = new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', maximumFractionDigits: 0 });
   const kpisHtml = [
     { etiqueta: 'Total gestiones', valor: formateadorNumero.format(kpis.total_gestiones || 0) },
     { etiqueta: 'Clientes únicos gestionados', valor: formateadorNumero.format(kpis.clientes_unicos || 0) },
     { etiqueta: 'Agentes activos', valor: formateadorNumero.format(kpis.agentes_activos || 0) },
     { etiqueta: 'Contacto directo', valor: formateadorNumero.format(kpis.contacto_directo || 0) },
     { etiqueta: '% Efectividad (contacto directo)', valor: formateadorPorcentaje.format(pctEfectividad) },
+    { etiqueta: 'Pagos por mensajes masivos', valor: `${formateadorNumero.format(masividad.dni_con_pago || 0)} (${formateadorMonedaMasividad.format(masividad.monto_recaudado || 0)})` },
   ];
   document.getElementById('kpis-resumen').innerHTML = kpisHtml.map(k => `
     <div class="tarjeta-kpi"><span class="valor">${k.valor}</span><span class="etiqueta">${k.etiqueta}</span></div>`).join('');
