@@ -335,6 +335,65 @@ async function cargarVistaResumen() {
       <td class="numero">${formateadorMonedaRecupero.format(ext.recupero_total)}</td>
     </tr>`;
   }).join('');
+
+  await cargarEmbudoYContactabilidad(unidadNegocio, fechaDesde, fechaHasta);
+}
+
+// ============================================================
+// EMBUDO DE EFECTIVIDAD Y CONTACTABILIDAD DE LA CARTERA
+// ============================================================
+const OBJETIVOS_EMBUDO = { contacto: 0.20, promesas: 0.50, cumplidas: 0.60, recaudacion: 0.02 };
+
+async function cargarEmbudoYContactabilidad(unidadNegocio, fechaDesde, fechaHasta) {
+  const mensajeSinUnidad = document.getElementById('embudo-mensaje-sin-unidad');
+  const contenido = document.getElementById('embudo-contenido');
+
+  if (!unidadNegocio) {
+    mensajeSinUnidad.classList.remove('oculto');
+    contenido.classList.add('oculto');
+    return;
+  }
+  mensajeSinUnidad.classList.add('oculto');
+  contenido.classList.remove('oculto');
+
+  const [embudoResp, contactabilidadResp] = await Promise.all([
+    supabaseClient.rpc('cartera_embudo_efectividad', { p_unidad_negocio: unidadNegocio, fecha_desde: fechaDesde, fecha_hasta: fechaHasta }),
+    supabaseClient.rpc('cartera_contactabilidad', { p_unidad_negocio: unidadNegocio, fecha_desde: fechaDesde, fecha_hasta: fechaHasta }),
+  ]);
+
+  const e = (embudoResp.data && embudoResp.data[0]) || {};
+  const formateadorMoneda = new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', maximumFractionDigits: 0 });
+
+  const pctContacto = e.dni_cartera ? e.dni_contactados_titular / e.dni_cartera : 0;
+  const pctPromesas = e.dni_contactados_titular ? e.dni_promesas / e.dni_contactados_titular : 0;
+  const pctCumplidas = e.dni_promesas ? e.dni_promesas_cumplidas / e.dni_promesas : 0;
+  const pctRecaudacion = e.deuda_cartera ? e.recaudacion / e.deuda_cartera : 0;
+
+  const filaEmbudo = (etapa, cantidad, pct, objetivo, esMoneda) => `
+    <tr>
+      <td>${etapa}</td>
+      <td class="numero">${esMoneda ? formateadorMoneda.format(cantidad) : formateadorNumero.format(cantidad)}</td>
+      <td class="numero">${formateadorPorcentaje.format(pct)}</td>
+      <td class="numero">${formateadorPorcentaje.format(objetivo)}</td>
+    </tr>`;
+
+  document.querySelector('#tabla-embudo tbody').innerHTML =
+    `<tr><td><strong>Cartera Asignada (DNI)</strong></td><td class="numero"><strong>${formateadorNumero.format(e.dni_cartera || 0)}</strong></td><td class="numero">—</td><td class="numero">—</td></tr>` +
+    filaEmbudo('Contacto a Titular', e.dni_contactados_titular || 0, pctContacto, OBJETIVOS_EMBUDO.contacto, false) +
+    filaEmbudo('Promesas de Pago', e.dni_promesas || 0, pctPromesas, OBJETIVOS_EMBUDO.promesas, false) +
+    filaEmbudo('Promesas Cumplidas', e.dni_promesas_cumplidas || 0, pctCumplidas, OBJETIVOS_EMBUDO.cumplidas, false) +
+    filaEmbudo('Recaudación', e.recaudacion || 0, pctRecaudacion, OBJETIVOS_EMBUDO.recaudacion, true);
+
+  const c = (contactabilidadResp.data && contactabilidadResp.data[0]) || {};
+  destruirSiExiste('grafico-contactabilidad');
+  graficos['grafico-contactabilidad'] = new Chart(document.getElementById('grafico-contactabilidad'), {
+    type: 'doughnut',
+    data: {
+      labels: ['DNI gestionados', 'DNI sin gestión'],
+      datasets: [{ data: [c.dni_gestionados || 0, c.dni_sin_gestion || 0], backgroundColor: [COLOR_VERDE, COLOR_ROJO] }],
+    },
+    options: { responsive: true },
+  });
 }
 
 // ============================================================
