@@ -245,8 +245,11 @@ async function cargarVistaResumen() {
   const porEfecto = porEfectoResp.data || [];
 
   // ---- KPIs ----
-  const totalContacto = Number(kpis.contacto_directo || 0) + Number(kpis.contacto_indirecto || 0) + Number(kpis.sin_contacto || 0);
-  const pctEfectividad = totalContacto ? (Number(kpis.contacto_directo || 0) / totalContacto) : 0;
+  // % Efectividad = contacto directo sobre el TOTAL de gestiones grabadas
+  // (no solo sobre directo+indirecto+sin_contacto, porque los mensajes
+  // masivos sin pago quedan afuera de esas 3 categorías a proposito, pero
+  // siguen siendo gestiones grabadas y tienen que contar en el denominador).
+  const pctEfectividad = kpis.total_gestiones ? (Number(kpis.contacto_directo || 0) / Number(kpis.total_gestiones)) : 0;
   const masividad = (masividadResp.data && masividadResp.data[0]) || {};
   const formateadorMonedaMasividad = new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', maximumFractionDigits: 0 });
   const kpisHtml = [
@@ -321,8 +324,9 @@ async function cargarVistaResumen() {
   const filasAgente = Object.values(porAgente).sort((a, b) => b.gestiones - a.gestiones);
   const formateadorMonedaRecupero = new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', maximumFractionDigits: 0 });
   document.querySelector('#tabla-por-agente tbody').innerHTML = filasAgente.map(a => {
-    const totalContactoAgente = a.directo + a.indirecto + a.sinContacto;
-    const pct = totalContactoAgente ? a.directo / totalContactoAgente : 0;
+    // Igual que en el KPI general: efectividad sobre el TOTAL de
+    // gestiones del agente, no solo sobre directo+indirecto+sin_contacto.
+    const pct = a.gestiones ? a.directo / a.gestiones : 0;
     const ext = extendidoPorUsuario[a.usuario] || { promesas: 0, promesas_cumplidas: 0, recupero_total: 0 };
     const pctCumplidas = ext.promesas ? ext.promesas_cumplidas / ext.promesas : 0;
     return `<tr>
