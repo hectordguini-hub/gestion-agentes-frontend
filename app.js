@@ -245,15 +245,16 @@ async function cargarVistaResumen() {
   const porEfecto = porEfectoResp.data || [];
 
   // ---- KPIs ----
-  // % Efectividad = contacto directo sobre el TOTAL de gestiones grabadas
-  // (no solo sobre directo+indirecto+sin_contacto, porque los mensajes
-  // masivos sin pago quedan afuera de esas 3 categorías a proposito, pero
-  // siguen siendo gestiones grabadas y tienen que contar en el denominador).
-  const pctEfectividad = kpis.total_gestiones ? (Number(kpis.contacto_directo || 0) / Number(kpis.total_gestiones)) : 0;
+  // % Efectividad = contacto directo (por ultima gestion de cada DNI)
+  // sobre la cantidad de DNI trabajados (tambien deduplicado) — no sobre
+  // el total de filas de gestion, que puede tener varios intentos sobre
+  // el mismo DNI.
+  const pctEfectividad = kpis.dni_trabajados ? (Number(kpis.contacto_directo || 0) / Number(kpis.dni_trabajados)) : 0;
   const masividad = (masividadResp.data && masividadResp.data[0]) || {};
   const formateadorMonedaMasividad = new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', maximumFractionDigits: 0 });
   const kpisHtml = [
     { etiqueta: 'Total gestiones', valor: formateadorNumero.format(kpis.total_gestiones || 0) },
+    { etiqueta: 'DNI trabajados', valor: formateadorNumero.format(kpis.dni_trabajados || 0) },
     { etiqueta: 'Clientes únicos gestionados', valor: formateadorNumero.format(kpis.clientes_unicos || 0) },
     { etiqueta: 'Agentes activos', valor: formateadorNumero.format(kpis.agentes_activos || 0) },
     { etiqueta: 'Contacto directo', valor: formateadorNumero.format(kpis.contacto_directo || 0) },
@@ -311,12 +312,16 @@ async function cargarVistaResumen() {
   const porAgente = {};
   porAgenteDia.forEach(f => {
     const clave = `${f.usuario}|${f.empresa || ''}`;
-    if (!porAgente[clave]) porAgente[clave] = { usuario: f.usuario, empresa: f.empresa, gestiones: 0, directo: 0, indirecto: 0, sinContacto: 0 };
+    if (!porAgente[clave]) porAgente[clave] = { usuario: f.usuario, empresa: f.empresa, gestiones: 0, directo: 0, indirecto: 0, sinContacto: 0, dniTrabajados: 0 };
     porAgente[clave].gestiones += Number(f.cantidad);
   });
   efectividad.forEach(f => {
     const clave = `${f.usuario}|${f.empresa || ''}`;
-    if (!porAgente[clave]) porAgente[clave] = { usuario: f.usuario, empresa: f.empresa, gestiones: 0, directo: 0, indirecto: 0, sinContacto: 0 };
+    if (!porAgente[clave]) porAgente[clave] = { usuario: f.usuario, empresa: f.empresa, gestiones: 0, directo: 0, indirecto: 0, sinContacto: 0, dniTrabajados: 0 };
+    // 'efectividad' ahora viene deduplicada por DNI (ultima gestion), y
+    // 'MASIVO SIN PAGO' es una 4ta categoria que solo cuenta para el
+    // denominador del % (no se muestra como columna aparte).
+    porAgente[clave].dniTrabajados += Number(f.cantidad);
     if (f.tipo_contacto === 'CONTACTO DIRECTO') porAgente[clave].directo += Number(f.cantidad);
     else if (f.tipo_contacto === 'CONTACTO INDIRECTO') porAgente[clave].indirecto += Number(f.cantidad);
     else if (f.tipo_contacto === 'NO CONTACTO') porAgente[clave].sinContacto += Number(f.cantidad);
@@ -324,9 +329,10 @@ async function cargarVistaResumen() {
   const filasAgente = Object.values(porAgente).sort((a, b) => b.gestiones - a.gestiones);
   const formateadorMonedaRecupero = new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', maximumFractionDigits: 0 });
   document.querySelector('#tabla-por-agente tbody').innerHTML = filasAgente.map(a => {
-    // Igual que en el KPI general: efectividad sobre el TOTAL de
-    // gestiones del agente, no solo sobre directo+indirecto+sin_contacto.
-    const pct = a.gestiones ? a.directo / a.gestiones : 0;
+    // % Efectividad del agente = contacto directo (ultima gestion por DNI)
+    // sobre el total de DNI que trabajo ese agente (incluye los DNI cuya
+    // ultima gestion quedo excluida por masiva sin pago).
+    const pct = a.dniTrabajados ? a.directo / a.dniTrabajados : 0;
     const ext = extendidoPorUsuario[a.usuario] || { promesas: 0, promesas_cumplidas: 0, recupero_total: 0 };
     const pctCumplidas = ext.promesas ? ext.promesas_cumplidas / ext.promesas : 0;
     return `<tr>
