@@ -236,7 +236,7 @@ async function cargarVistaResumen() {
   ]);
 
   const extendidoPorUsuario = {};
-  (extendidoResp.data || []).forEach(f => { extendidoPorUsuario[f.usuario] = f; });
+  (extendidoResp.data || []).forEach(f => { extendidoPorUsuario[`${f.usuario}|${f.empresa || ''}`] = f; });
 
   const kpis = (kpisResp.data && kpisResp.data[0]) || {};
   const porAgenteDia = porAgenteDiaResp.data || [];
@@ -333,7 +333,7 @@ async function cargarVistaResumen() {
     // sobre el total de DNI que trabajo ese agente (incluye los DNI cuya
     // ultima gestion quedo excluida por masiva sin pago).
     const pct = a.dniTrabajados ? a.directo / a.dniTrabajados : 0;
-    const ext = extendidoPorUsuario[a.usuario] || { promesas: 0, promesas_cumplidas: 0, recupero_total: 0 };
+    const ext = extendidoPorUsuario[`${a.usuario}|${a.empresa || ''}`] || { promesas: 0, promesas_cumplidas: 0, recupero_total: 0 };
     const pctCumplidas = ext.promesas ? ext.promesas_cumplidas / ext.promesas : 0;
     return `<tr>
       <td>${a.usuario}</td>
