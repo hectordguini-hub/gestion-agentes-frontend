@@ -383,20 +383,27 @@ async function cargarEmbudoYContactabilidad(unidadNegocio, fechaDesde, fechaHast
   const pctCumplidas = e.dni_promesas ? e.dni_promesas_cumplidas / e.dni_promesas : 0;
   const pctRecaudacion = e.deuda_cartera ? e.recaudacion / e.deuda_cartera : 0;
 
-  const filaEmbudo = (etapa, cantidad, pct, objetivo, esMoneda) => `
+  const filaEmbudo = (etapa, cantidad, pct, objetivo, esMoneda) => {
+    const desvio = pct - objetivo;
+    const signo = desvio >= 0 ? '+' : '';
+    const color = desvio >= 0 ? 'var(--verde-recupero)' : 'var(--rojo-alerta)';
+    return `
     <tr>
       <td>${etapa}</td>
       <td class="numero">${esMoneda ? formateadorMoneda.format(cantidad) : formateadorNumero.format(cantidad)}</td>
       <td class="numero">${formateadorPorcentaje.format(pct)}</td>
       <td class="numero">${formateadorPorcentaje.format(objetivo)}</td>
+      <td class="numero" style="color:${color}; font-weight:600;">${signo}${formateadorPorcentaje.format(desvio)}</td>
     </tr>`;
+  };
 
   document.querySelector('#tabla-embudo tbody').innerHTML =
-    `<tr><td><strong>Cartera Asignada (DNI)</strong></td><td class="numero"><strong>${formateadorNumero.format(e.dni_cartera || 0)}</strong></td><td class="numero">—</td><td class="numero">—</td></tr>` +
+    `<tr><td><strong>Cartera Asignada (DNI)</strong></td><td class="numero"><strong>${formateadorNumero.format(e.dni_cartera || 0)}</strong></td><td class="numero">—</td><td class="numero">—</td><td class="numero">—</td></tr>` +
     filaEmbudo('Contacto a Titular', e.dni_contactados_titular || 0, pctContacto, OBJETIVOS_EMBUDO.contacto, false) +
     filaEmbudo('Promesas de Pago', e.dni_promesas || 0, pctPromesas, OBJETIVOS_EMBUDO.promesas, false) +
     filaEmbudo('Promesas Cumplidas', e.dni_promesas_cumplidas || 0, pctCumplidas, OBJETIVOS_EMBUDO.cumplidas, false) +
     filaEmbudo('Recaudación', e.recaudacion || 0, pctRecaudacion, OBJETIVOS_EMBUDO.recaudacion, true);
+
 
   const c = (contactabilidadResp.data && contactabilidadResp.data[0]) || {};
   destruirSiExiste('grafico-contactabilidad');
