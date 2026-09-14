@@ -390,6 +390,35 @@ async function cargarVistaResumen() {
     </tr>`;
   }).join('');
 
+  // ---- Fila de totales, sumando todas las filas de la tabla ----
+  if (filasAgente.length) {
+    const sumar = campo => filasAgente.reduce((acc, a) => acc + Number(a[campo] || 0), 0);
+    const totGestiones = sumar('gestiones');
+    const totDirecto = sumar('directo');
+    const totIndirecto = sumar('indirecto');
+    const totSinContacto = sumar('sinContacto');
+    const totDniTrabajados = sumar('dniTrabajados');
+    const totPromesas = filasAgente.reduce((acc, a) => acc + Number((extendidoPorUsuario[`${a.usuario}|${a.empresa || ''}`] || {}).promesas || 0), 0);
+    const totCumplidas = filasAgente.reduce((acc, a) => acc + Number((extendidoPorUsuario[`${a.usuario}|${a.empresa || ''}`] || {}).promesas_cumplidas || 0), 0);
+    const totRecupero = filasAgente.reduce((acc, a) => acc + Number((extendidoPorUsuario[`${a.usuario}|${a.empresa || ''}`] || {}).recupero_total || 0), 0);
+    const pctTotal = totDniTrabajados ? totDirecto / totDniTrabajados : 0;
+    const pctCumplidasTotal = totPromesas ? totCumplidas / totPromesas : 0;
+
+    document.querySelector('#tabla-por-agente tbody').innerHTML += `
+      <tr class="fila-mes-actual">
+        <td colspan="2"><strong>Total</strong></td>
+        <td class="numero"><strong>${formateadorNumero.format(totGestiones)}</strong></td>
+        <td class="numero"><strong>${formateadorNumero.format(totDirecto)}</strong></td>
+        <td class="numero"><strong>${formateadorNumero.format(totIndirecto)}</strong></td>
+        <td class="numero"><strong>${formateadorNumero.format(totSinContacto)}</strong></td>
+        <td class="numero"><strong>${formateadorPorcentaje.format(pctTotal)}</strong></td>
+        <td class="numero"><strong>${formateadorNumero.format(totPromesas)}</strong></td>
+        <td class="numero"><strong>${formateadorNumero.format(totCumplidas)}</strong></td>
+        <td class="numero"><strong>${formateadorPorcentaje.format(pctCumplidasTotal)}</strong></td>
+        <td class="numero"><strong>${formateadorMonedaRecupero.format(totRecupero)}</strong></td>
+      </tr>`;
+  }
+
   await cargarEmbudoYContactabilidad(unidadNegocio, fechaDesde, fechaHasta);
 }
 
