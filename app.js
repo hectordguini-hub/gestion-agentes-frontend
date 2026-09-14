@@ -379,6 +379,7 @@ async function cargarVistaResumen() {
       <td>${a.usuario}</td>
       <td>${a.empresa || ''}</td>
       <td class="numero">${formateadorNumero.format(a.gestiones)}</td>
+      <td class="numero">${formateadorNumero.format(a.dniTrabajados)}</td>
       <td class="numero">${formateadorNumero.format(a.directo)}</td>
       <td class="numero">${formateadorNumero.format(a.indirecto)}</td>
       <td class="numero">${formateadorNumero.format(a.sinContacto)}</td>
@@ -408,6 +409,7 @@ async function cargarVistaResumen() {
       <tr class="fila-mes-actual">
         <td colspan="2"><strong>Total</strong></td>
         <td class="numero"><strong>${formateadorNumero.format(totGestiones)}</strong></td>
+        <td class="numero"><strong>${formateadorNumero.format(totDniTrabajados)}</strong></td>
         <td class="numero"><strong>${formateadorNumero.format(totDirecto)}</strong></td>
         <td class="numero"><strong>${formateadorNumero.format(totIndirecto)}</strong></td>
         <td class="numero"><strong>${formateadorNumero.format(totSinContacto)}</strong></td>
