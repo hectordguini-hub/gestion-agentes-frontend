@@ -36,11 +36,12 @@ document.getElementById('btn-logout').addEventListener('click', async () => {
   location.reload();
 });
 
-function mostrarApp(session) {
+async function mostrarApp(session) {
   document.getElementById('pantalla-login').classList.add('oculto');
   document.getElementById('app').classList.remove('oculto');
   document.getElementById('usuario-email').textContent = session.user.email;
-  cargarSelectorUnidadNegocio();
+  await cargarSelectorUnidadNegocio();
+  await aplicarRestriccionUnidad(session.user.email);
   cargarVistaResumen();
   cargarLogCargas();
 }
@@ -55,6 +56,45 @@ async function cargarSelectorUnidadNegocio() {
       opt.textContent = f.unidad_negocio;
       select.appendChild(opt);
     });
+  });
+}
+
+// ============================================================
+// RESTRICCION DE UNIDAD PARA REFERENTES
+// ============================================================
+async function aplicarRestriccionUnidad(email) {
+  const { data } = await supabaseClient
+    .from('referentes_unidad')
+    .select('unidad_negocio')
+    .eq('email', email);
+
+  // Si el email no esta en la tabla (por ejemplo la cuenta de
+  // administracion), no se restringe nada -> sigue viendo todo.
+  if (!data || data.length === 0) return;
+
+  const unidadesPermitidas = data.map(f => f.unidad_negocio);
+  const todosLosSelectores = [
+    'selector-unidad-resumen', 'cartera-resumen-unidad',
+    'cartera-unidad-negocio', 'recupero-unidad-negocio', 'baja-unidad-negocio',
+  ];
+
+  todosLosSelectores.forEach(id => {
+    const select = document.getElementById(id);
+    if (!select) return;
+    Array.from(select.options).forEach(opt => {
+      // Se conserva la opcion vacia/placeholder ("", o el "Todas" en los
+      // selectores que la tienen) solo si el select NO es de los que
+      // muestran "Todas" -> en los que si la tienen, "Todas" se saca
+      // igual, porque un referente no deberia poder ver el conjunto.
+      if (opt.value === '') { select.removeChild(opt); return; }
+      if (opt.value === 'JUDICIAL_AUTO') { select.removeChild(opt); return; }
+      if (!unidadesPermitidas.includes(opt.value)) select.removeChild(opt);
+    });
+    if (select.options.length > 0) {
+      select.value = select.options[0].value;
+      select.dispatchEvent(new Event('change'));
+    }
+    if (select.options.length === 1) select.disabled = true;
   });
 }
 
