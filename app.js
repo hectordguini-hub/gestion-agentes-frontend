@@ -265,7 +265,7 @@ async function cargarVistaResumen() {
   const { fechaDesde, fechaHasta } = fechasDelMesSeleccionado();
   const unidadNegocio = document.getElementById('selector-unidad-resumen').value || null;
 
-  const [kpisResp, porAgenteDiaResp, efectividadResp, porCanalResp, porEfectoResp, extendidoResp, masividadResp] = await Promise.all([
+  const [kpisResp, porAgenteDiaResp, efectividadResp, porCanalResp, porEfectoResp, extendidoResp, masividadResp, carteraDniResp] = await Promise.all([
     supabaseClient.rpc('gestiones_kpis', { fecha_desde: fechaDesde, fecha_hasta: fechaHasta, p_unidad_negocio: unidadNegocio }),
     supabaseClient.rpc('gestiones_por_agente_dia', { fecha_desde: fechaDesde, fecha_hasta: fechaHasta, p_unidad_negocio: unidadNegocio }),
     supabaseClient.rpc('gestiones_efectividad_por_agente', { fecha_desde: fechaDesde, fecha_hasta: fechaHasta, p_unidad_negocio: unidadNegocio }),
@@ -273,6 +273,9 @@ async function cargarVistaResumen() {
     supabaseClient.rpc('gestiones_por_efecto', { fecha_desde: fechaDesde, fecha_hasta: fechaHasta, p_unidad_negocio: unidadNegocio }),
     supabaseClient.rpc('gestiones_extendido_por_agente', { fecha_desde: fechaDesde, fecha_hasta: fechaHasta, p_unidad_negocio: unidadNegocio }),
     supabaseClient.rpc('gestiones_masividad', { fecha_desde: fechaDesde, fecha_hasta: fechaHasta, p_unidad_negocio: unidadNegocio }),
+    unidadNegocio
+      ? supabaseClient.rpc('cartera_embudo_efectividad', { p_unidad_negocio: unidadNegocio, fecha_desde: fechaDesde, fecha_hasta: fechaHasta })
+      : Promise.resolve({ data: null }),
   ]);
 
   const extendidoPorUsuario = {};
@@ -283,6 +286,7 @@ async function cargarVistaResumen() {
   const efectividad = efectividadResp.data || [];
   const porCanal = porCanalResp.data || [];
   const porEfecto = porEfectoResp.data || [];
+  const dniCarteraAsignada = carteraDniResp.data && carteraDniResp.data[0] ? carteraDniResp.data[0].dni_cartera : null;
 
   // ---- KPIs ----
   // % Efectividad = contacto directo (por ultima gestion de cada DNI)
@@ -295,6 +299,7 @@ async function cargarVistaResumen() {
   const kpisHtml = [
     { etiqueta: 'Total gestiones', valor: formateadorNumero.format(kpis.total_gestiones || 0) },
     { etiqueta: 'DNI trabajados', valor: formateadorNumero.format(kpis.dni_trabajados || 0) },
+    { etiqueta: 'Cartera Asignada (DNI)', valor: dniCarteraAsignada !== null ? formateadorNumero.format(dniCarteraAsignada) : '—' },
     { etiqueta: 'Agentes activos', valor: formateadorNumero.format(kpis.agentes_activos || 0) },
     { etiqueta: 'Contacto directo', valor: formateadorNumero.format(kpis.contacto_directo || 0) },
     { etiqueta: '% Efectividad (contacto directo)', valor: formateadorPorcentaje.format(pctEfectividad) },
@@ -420,7 +425,7 @@ async function cargarVistaResumen() {
       </tr>`;
   }
 
-  await cargarEmbudoYContactabilidad(unidadNegocio, fechaDesde, fechaHasta);
+  await cargarEmbudoYContactabilidad(unidadNegocio, fechaDesde, fechaHasta, carteraDniResp);
 }
 
 // ============================================================
@@ -428,20 +433,25 @@ async function cargarVistaResumen() {
 // ============================================================
 const OBJETIVOS_EMBUDO = { contacto: 0.20, promesas: 0.50, cumplidas: 0.60, recaudacion: 0.02 };
 
-async function cargarEmbudoYContactabilidad(unidadNegocio, fechaDesde, fechaHasta) {
+async function cargarEmbudoYContactabilidad(unidadNegocio, fechaDesde, fechaHasta, embudoRespPrevio) {
   const mensajeSinUnidad = document.getElementById('embudo-mensaje-sin-unidad');
   const contenido = document.getElementById('embudo-contenido');
+  const contactabilidadContenido = document.getElementById('contactabilidad-contenido');
 
   if (!unidadNegocio) {
     mensajeSinUnidad.classList.remove('oculto');
     contenido.classList.add('oculto');
+    contactabilidadContenido.classList.add('oculto');
     return;
   }
   mensajeSinUnidad.classList.add('oculto');
   contenido.classList.remove('oculto');
+  contactabilidadContenido.classList.remove('oculto');
 
+  // El embudo ya se pidio en cargarVistaResumen (para el KPI de Cartera
+  // Asignada) — se reutiliza esa respuesta en vez de pedirla de nuevo.
   const [embudoResp, contactabilidadResp] = await Promise.all([
-    supabaseClient.rpc('cartera_embudo_efectividad', { p_unidad_negocio: unidadNegocio, fecha_desde: fechaDesde, fecha_hasta: fechaHasta }),
+    embudoRespPrevio || supabaseClient.rpc('cartera_embudo_efectividad', { p_unidad_negocio: unidadNegocio, fecha_desde: fechaDesde, fecha_hasta: fechaHasta }),
     supabaseClient.rpc('cartera_contactabilidad', { p_unidad_negocio: unidadNegocio, fecha_desde: fechaDesde, fecha_hasta: fechaHasta }),
   ]);
 
