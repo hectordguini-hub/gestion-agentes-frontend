@@ -477,12 +477,24 @@ async function cargarEmbudoYContactabilidad(unidadNegocio, fechaDesde, fechaHast
     </tr>`;
   };
 
+  const filaSoloMonto = (etapa, cantidad) => `
+    <tr>
+      <td>${etapa}</td>
+      <td class="numero">${formateadorMoneda.format(cantidad)}</td>
+      <td class="numero">—</td>
+      <td class="numero">—</td>
+      <td class="numero">—</td>
+    </tr>`;
+
+  const esUnidadJudicial = unidadNegocio === 'ON CITY JUDICIAL' || unidadNegocio === 'CFN JUDICIAL';
+
   document.querySelector('#tabla-embudo tbody').innerHTML =
     `<tr><td><strong>Cartera Asignada (DNI)</strong></td><td class="numero"><strong>${formateadorNumero.format(e.dni_cartera || 0)}</strong></td><td class="numero">—</td><td class="numero">—</td><td class="numero">—</td></tr>` +
     filaEmbudo('Contacto a Titular', e.dni_contactados_titular || 0, pctContacto, OBJETIVOS_EMBUDO.contacto, false) +
     filaEmbudo('Promesas de Pago', e.dni_promesas || 0, pctPromesas, OBJETIVOS_EMBUDO.promesas, false) +
     filaEmbudo('Promesas Cumplidas', e.dni_promesas_cumplidas || 0, pctCumplidas, OBJETIVOS_EMBUDO.cumplidas, false) +
-    filaEmbudo('Recaudación', e.recaudacion || 0, pctRecaudacion, OBJETIVOS_EMBUDO.recaudacion, true);
+    filaEmbudo('Recaudación (sobre Cartera Asignada)', e.recaudacion || 0, pctRecaudacion, OBJETIVOS_EMBUDO.recaudacion, true) +
+    (esUnidadJudicial ? filaSoloMonto('Recaudación (Total Compañía)', e.recaudacion_total_compania || 0) : '');
 
 
   const c = (contactabilidadResp.data && contactabilidadResp.data[0]) || {};
@@ -699,3 +711,89 @@ document.getElementById('form-cargar-cartera').addEventListener('submit', async 
     boton.disabled = false;
   }
 });
+
+// ============================================================
+// CONFIGURACION DE AGENTES (alta / baja logica)
+// ============================================================
+document.getElementById('form-alta-agente').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const estadoEl = document.getElementById('alta-agente-estado');
+  const boton = document.getElementById('btn-alta-agente');
+  estadoEl.textContent = 'Guardando…';
+  estadoEl.className = 'mensaje-estado';
+  boton.disabled = true;
+
+  const { data: { session } } = await supabaseClient.auth.getSession();
+  const formData = new FormData();
+  formData.append('unidad_negocio', document.getElementById('alta-unidad-negocio').value);
+  formData.append('box', document.getElementById('alta-box').value);
+  formData.append('agente', document.getElementById('alta-agente').value);
+  formData.append('horas', document.getElementById('alta-horas').value);
+
+  try {
+    const respuesta = await fetch(`${CONFIG.BACKEND_URL}/agentes-box/alta`, {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${session.access_token}` },
+      body: formData,
+    });
+    const resultado = await respuesta.json();
+    if (!respuesta.ok) throw new Error(resultado.detail || 'Error desconocido');
+
+    estadoEl.textContent = resultado.mensaje || 'Agente agregado.';
+    estadoEl.className = 'mensaje-estado ok';
+    document.getElementById('form-alta-agente').reset();
+    cargarTablaAgentesConfig();
+  } catch (err) {
+    estadoEl.textContent = `Error: ${err.message}`;
+    estadoEl.className = 'mensaje-estado error';
+  } finally {
+    boton.disabled = false;
+  }
+});
+
+document.getElementById('config-unidad-negocio').addEventListener('change', cargarTablaAgentesConfig);
+
+async function cargarTablaAgentesConfig() {
+  const unidad = document.getElementById('config-unidad-negocio').value;
+  let query = supabaseClient.from('agentes_box').select('unidad_negocio, box, agente, horas, activo').order('unidad_negocio').order('box').order('agente');
+  if (unidad) query = query.eq('unidad_negocio', unidad);
+  const { data } = await query;
+
+  document.querySelector('#tabla-agentes-config tbody').innerHTML = (data || []).map(a => `
+    <tr>
+      <td>${a.unidad_negocio}</td>
+      <td>${a.box}</td>
+      <td>${a.agente}</td>
+      <td class="numero">${a.horas != null ? a.horas : '—'}</td>
+      <td>${a.activo ? 'Activo' : 'Baja'}</td>
+      <td><button type="button" class="btn-secundario btn-toggle-agente" data-unidad="${a.unidad_negocio}" data-box="${a.box}" data-agente="${a.agente}" data-activo="${a.activo}">${a.activo ? 'Dar de baja' : 'Reactivar'}</button></td>
+    </tr>`).join('');
+
+  document.querySelectorAll('.btn-toggle-agente').forEach(boton => {
+    boton.addEventListener('click', async () => {
+      const { unidad: unidadNegocio, box, agente, activo } = boton.dataset;
+      const accion = activo === 'true' ? 'baja' : 'reactivar';
+      boton.disabled = true;
+      const { data: { session } } = await supabaseClient.auth.getSession();
+      const formData = new FormData();
+      formData.append('unidad_negocio', unidadNegocio);
+      formData.append('box', box);
+      formData.append('agente', agente);
+      try {
+        const respuesta = await fetch(`${CONFIG.BACKEND_URL}/agentes-box/${accion}`, {
+          method: 'POST',
+          headers: { 'Authorization': `Bearer ${session.access_token}` },
+          body: formData,
+        });
+        const resultado = await respuesta.json();
+        if (!respuesta.ok) throw new Error(resultado.detail || 'Error desconocido');
+        cargarTablaAgentesConfig();
+      } catch (err) {
+        alert(`Error: ${err.message}`);
+        boton.disabled = false;
+      }
+    });
+  });
+}
+
+document.querySelector('[data-vista="configuracion"]').addEventListener('click', cargarTablaAgentesConfig);
