@@ -425,7 +425,7 @@ async function cargarVistaResumen() {
       </tr>`;
   }
 
-  await cargarEmbudoYContactabilidad(unidadNegocio, fechaDesde, fechaHasta, carteraDniResp);
+  await cargarEmbudoYContactabilidad(unidadNegocio, fechaDesde, fechaHasta, carteraDniResp, pctEfectividad);
 }
 
 // ============================================================
@@ -433,7 +433,7 @@ async function cargarVistaResumen() {
 // ============================================================
 const OBJETIVOS_EMBUDO = { contacto: 0.20, promesas: 0.50, cumplidas: 0.60, recaudacion: 0.02 };
 
-async function cargarEmbudoYContactabilidad(unidadNegocio, fechaDesde, fechaHasta, embudoRespPrevio) {
+async function cargarEmbudoYContactabilidad(unidadNegocio, fechaDesde, fechaHasta, embudoRespPrevio, pctEfectividadKpi) {
   const mensajeSinUnidad = document.getElementById('embudo-mensaje-sin-unidad');
   const contenido = document.getElementById('embudo-contenido');
   const contactabilidadContenido = document.getElementById('contactabilidad-contenido');
@@ -458,7 +458,11 @@ async function cargarEmbudoYContactabilidad(unidadNegocio, fechaDesde, fechaHast
   const e = (embudoResp.data && embudoResp.data[0]) || {};
   const formateadorMoneda = new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', maximumFractionDigits: 0 });
 
-  const pctContacto = e.dni_cartera ? e.dni_contactados_titular / e.dni_cartera : 0;
+  // % Real de "Contacto a Titular" = el mismo % Efectividad del KPI de
+  // arriba (contacto directo sobre DNI trabajados) — no sobre el total
+  // de la Cartera Asignada. La cantidad que se muestra sigue siendo la
+  // del embudo (DNI de la cartera contactados a titular).
+  const pctContacto = pctEfectividadKpi || 0;
   const pctPromesas = e.dni_contactados_titular ? e.dni_promesas / e.dni_contactados_titular : 0;
   const pctCumplidas = e.dni_promesas ? e.dni_promesas_cumplidas / e.dni_promesas : 0;
   const pctRecaudacion = e.deuda_cartera ? e.recaudacion / e.deuda_cartera : 0;
