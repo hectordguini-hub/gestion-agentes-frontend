@@ -61,6 +61,7 @@
       <button class="pestana" data-vista="cargar-recupero">Cargar Recupero</button>
       <button class="pestana" data-vista="cargar-cartera">Cargar Cartera</button>
       <button class="pestana" data-vista="baja-cartera">Dar de baja Cartera</button>
+      <button class="pestana" data-vista="configuracion">Configuración</button>
     </nav>
 
     <main>
@@ -284,6 +285,70 @@
             <tbody></tbody>
           </table>
         </div>
+      </section>
+
+      <!-- ---------- VISTA: CONFIGURACION DE AGENTES ---------- -->
+      <section id="vista-configuracion" class="vista oculto">
+        <h2>Configuración de Agentes</h2>
+        <p class="ayuda">Alta y baja de agentes por box y unidad de negocio. Un agente dado de baja deja de contar para nuevas asignaciones de cartera y de gestiones, pero conserva su historial ya cargado.</p>
+
+        <form id="form-alta-usuario" class="tarjeta-carga">
+          <h3 style="margin:0;">Agregar usuario (login a la página)</h3>
+          <label class="campo-archivo">Email <input type="email" id="alta-usuario-email" required></label>
+          <label class="campo-archivo">Contraseña provisoria <input type="text" id="alta-usuario-password" required minlength="6"></label>
+          <label class="campo-archivo">
+            Restringir a una unidad (opcional)
+            <select id="alta-usuario-unidad">
+              <option value="" selected>Administrador (ve todas las unidades)</option>
+              <option value="ON CITY JUDICIAL">ON CITY JUDICIAL</option>
+              <option value="CFN JUDICIAL">CFN JUDICIAL</option>
+              <option value="ON CITY TERCERIZADO">ON CITY TERCERIZADO</option>
+              <option value="CFN TERCERIZADO">CFN TERCERIZADO</option>
+              <option value="GERENCIAR RECUPERA">GERENCIAR RECUPERA</option>
+            </select>
+          </label>
+          <button type="submit" id="btn-alta-usuario">Crear usuario</button>
+          <p id="alta-usuario-estado" class="mensaje-estado"></p>
+        </form>
+
+        <form id="form-alta-agente" class="tarjeta-carga">
+          <h3 style="margin:0;">Agregar agente</h3>
+          <label class="campo-archivo">
+            Unidad de negocio
+            <select id="alta-unidad-negocio" required>
+              <option value="" disabled selected>Elegí una unidad</option>
+              <option value="ON CITY JUDICIAL">ON CITY JUDICIAL</option>
+              <option value="CFN JUDICIAL">CFN JUDICIAL</option>
+              <option value="ON CITY TERCERIZADO">ON CITY TERCERIZADO</option>
+              <option value="CFN TERCERIZADO">CFN TERCERIZADO</option>
+              <option value="GERENCIAR RECUPERA">GERENCIAR RECUPERA</option>
+            </select>
+          </label>
+          <label class="campo-archivo">Box (ej: BOX 12) <input type="text" id="alta-box" required></label>
+          <label class="campo-archivo">Nombre del agente <input type="text" id="alta-agente" required></label>
+          <label class="campo-archivo">Horas semanales <input type="number" id="alta-horas" min="1" max="60" required></label>
+          <button type="submit" id="btn-alta-agente">Agregar</button>
+          <p id="alta-agente-estado" class="mensaje-estado"></p>
+        </form>
+
+        <details class="tabla-contenedor desplegable" open>
+          <summary>Agentes cargados</summary>
+          <div class="fila-titulo-selector">
+            <span class="etiqueta-actualizado">Filtrar por unidad</span>
+            <select id="config-unidad-negocio">
+              <option value="">Todas</option>
+              <option value="ON CITY JUDICIAL">ON CITY JUDICIAL</option>
+              <option value="CFN JUDICIAL">CFN JUDICIAL</option>
+              <option value="ON CITY TERCERIZADO">ON CITY TERCERIZADO</option>
+              <option value="CFN TERCERIZADO">CFN TERCERIZADO</option>
+              <option value="GERENCIAR RECUPERA">GERENCIAR RECUPERA</option>
+            </select>
+          </div>
+          <table id="tabla-agentes-config">
+            <thead><tr><th>Unidad</th><th>Box</th><th>Agente</th><th class="numero">Horas</th><th>Estado</th><th>Acción</th></tr></thead>
+            <tbody></tbody>
+          </table>
+        </details>
       </section>
     </main>
   </div>
