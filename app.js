@@ -797,3 +797,40 @@ async function cargarTablaAgentesConfig() {
 }
 
 document.querySelector('[data-vista="configuracion"]').addEventListener('click', cargarTablaAgentesConfig);
+
+// ============================================================
+// ALTA DE USUARIOS (login a la pagina)
+// ============================================================
+document.getElementById('form-alta-usuario').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const estadoEl = document.getElementById('alta-usuario-estado');
+  const boton = document.getElementById('btn-alta-usuario');
+  estadoEl.textContent = 'Creando…';
+  estadoEl.className = 'mensaje-estado';
+  boton.disabled = true;
+
+  const { data: { session } } = await supabaseClient.auth.getSession();
+  const formData = new FormData();
+  formData.append('email', document.getElementById('alta-usuario-email').value);
+  formData.append('password', document.getElementById('alta-usuario-password').value);
+  formData.append('unidad_negocio', document.getElementById('alta-usuario-unidad').value);
+
+  try {
+    const respuesta = await fetch(`${CONFIG.BACKEND_URL}/usuarios/alta`, {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${session.access_token}` },
+      body: formData,
+    });
+    const resultado = await respuesta.json();
+    if (!respuesta.ok) throw new Error(resultado.detail || 'Error desconocido');
+
+    estadoEl.textContent = resultado.mensaje || 'Usuario creado.';
+    estadoEl.className = 'mensaje-estado ok';
+    document.getElementById('form-alta-usuario').reset();
+  } catch (err) {
+    estadoEl.textContent = `Error: ${err.message}`;
+    estadoEl.className = 'mensaje-estado error';
+  } finally {
+    boton.disabled = false;
+  }
+});
