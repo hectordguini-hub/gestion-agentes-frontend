@@ -148,6 +148,16 @@ h1, h2, h3, strong { font-family: 'Open Sans', sans-serif; font-weight: 800; }
 }
 .menu-lateral .pestana:hover { color: #fff; background: rgba(255,255,255,0.06); }
 .menu-lateral .pestana.activa { color: #fff; background: rgba(255,255,255,0.1); border-left-color: var(--bronce-claro); font-weight: 600; }
+.etiqueta-grupo-menu {
+  color: var(--bronce-claro);
+  font-size: 0.68rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding: 0.9rem 0.9rem 0.3rem;
+  border-top: 1px solid rgba(255,255,255,0.12);
+  margin-top: 0.4rem;
+}
 
 .cuerpo-app main { flex: 1; min-width: 0; }
 
