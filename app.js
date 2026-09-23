@@ -78,6 +78,12 @@ async function aplicarRestriccionUnidad(email) {
   // administracion), no se restringe nada -> sigue viendo todo.
   if (!data || data.length === 0) return;
 
+  // Un referente (cualquiera con restriccion) no puede crear usuarios
+  // nuevos -> se le oculta el formulario, no solo se le bloquea en el
+  // backend.
+  const formAltaUsuario = document.getElementById('form-alta-usuario');
+  if (formAltaUsuario) formAltaUsuario.classList.add('oculto');
+
   const unidadesPermitidas = data.map(f => f.unidad_negocio);
   const todosLosSelectores = [
     'selector-unidad-resumen', 'cartera-resumen-unidad',
@@ -891,6 +897,25 @@ function descargarComoCsv(nombreArchivo, columnas, filas) {
   URL.revokeObjectURL(url);
 }
 
+// Las funciones de Supabase devuelven como maximo 1000 filas por
+// llamada -> se pagina con .range() hasta que una pagina vuelva con
+// menos de 1000, para traer TODO el resultado sin importar el tamaño.
+async function llamarRpcPaginado(nombreFuncion, parametros) {
+  const filas = [];
+  const tamanoPagina = 1000;
+  let desde = 0;
+  while (true) {
+    const { data, error } = await supabaseClient
+      .rpc(nombreFuncion, parametros)
+      .range(desde, desde + tamanoPagina - 1);
+    if (error) throw new Error(error.message);
+    filas.push(...(data || []));
+    if (!data || data.length < tamanoPagina) break;
+    desde += tamanoPagina;
+  }
+  return filas;
+}
+
 // ============================================================
 // PROMESAS VIGENTES
 // ============================================================
@@ -904,9 +929,12 @@ document.querySelector('[data-vista="promesas-vigentes"]').addEventListener('cli
 async function cargarPromesasVigentes() {
   const unidad = document.getElementById('pv-unidad-negocio').value;
   if (!unidad) return;
-  const { data } = await supabaseClient.rpc('promesas_vigentes_lista', { p_unidad_negocio: unidad, fecha_desde: null, fecha_hasta: null });
+  const data = await llamarRpcPaginado('promesas_vigentes_lista', { p_unidad_negocio: unidad, fecha_desde: null, fecha_hasta: null });
   ultimasFilasPV = data || [];
   const formateadorMoneda = new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', maximumFractionDigits: 0 });
+
+  document.getElementById('pv-kpis').innerHTML = `
+    <div class="tarjeta-kpi"><span class="valor">${formateadorNumero.format(ultimasFilasPV.length)}</span><span class="etiqueta">Promesas vigentes</span></div>`;
 
   document.querySelector('#tabla-pv tbody').innerHTML = ultimasFilasPV.map(f => `
     <tr>
@@ -945,8 +973,11 @@ document.querySelector('[data-vista="convenios"]').addEventListener('click', () 
 async function cargarConvenios() {
   const unidad = document.getElementById('conv-unidad-negocio').value;
   if (!unidad) return;
-  const { data } = await supabaseClient.rpc('convenios_detectados_lista', { p_unidad_negocio: unidad, fecha_desde: null, fecha_hasta: null });
+  const data = await llamarRpcPaginado('convenios_detectados_lista', { p_unidad_negocio: unidad, fecha_desde: null, fecha_hasta: null });
   ultimasFilasConv = data || [];
+
+  document.getElementById('conv-kpis').innerHTML = `
+    <div class="tarjeta-kpi"><span class="valor">${formateadorNumero.format(ultimasFilasConv.length)}</span><span class="etiqueta">Convenios detectados</span></div>`;
 
   document.querySelector('#tabla-conv tbody').innerHTML = ultimasFilasConv.map(f => `
     <tr>
@@ -984,7 +1015,7 @@ document.querySelector('[data-vista="no-contactados"]').addEventListener('click'
 async function cargarNoContactados() {
   const unidad = document.getElementById('nc-unidad-negocio').value;
   if (!unidad) return;
-  const { data } = await supabaseClient.rpc('cartera_no_contactados_lista', { p_unidad_negocio: unidad, fecha_desde: null, fecha_hasta: null });
+  const data = await llamarRpcPaginado('cartera_no_contactados_lista', { p_unidad_negocio: unidad, fecha_desde: null, fecha_hasta: null });
   ultimasFilasNC = data || [];
   const formateadorMoneda = new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', maximumFractionDigits: 0 });
 
@@ -1019,7 +1050,7 @@ document.querySelector('[data-vista="sin-gestion"]').addEventListener('click', (
 async function cargarSinGestion() {
   const unidad = document.getElementById('sg-unidad-negocio').value;
   if (!unidad) return;
-  const { data } = await supabaseClient.rpc('cartera_sin_gestion_lista', { p_unidad_negocio: unidad, fecha_desde: null, fecha_hasta: null });
+  const data = await llamarRpcPaginado('cartera_sin_gestion_lista', { p_unidad_negocio: unidad, fecha_desde: null, fecha_hasta: null });
   ultimasFilasSG = data || [];
   const formateadorMoneda = new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', maximumFractionDigits: 0 });
 
