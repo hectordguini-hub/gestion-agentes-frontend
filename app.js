@@ -41,6 +41,12 @@ async function mostrarApp(session) {
   document.getElementById('app').classList.remove('oculto');
   document.getElementById('usuario-email').textContent = session.user.email;
   await cargarSelectorUnidadNegocio();
+  await Promise.all([
+    llenarSelectorUnidadSimple('pv-unidad-negocio'),
+    llenarSelectorUnidadSimple('conv-unidad-negocio'),
+    llenarSelectorUnidadSimple('nc-unidad-negocio'),
+    llenarSelectorUnidadSimple('sg-unidad-negocio'),
+  ]);
   await aplicarRestriccionUnidad(session.user.email);
   cargarVistaResumen();
   cargarLogCargas();
@@ -76,6 +82,7 @@ async function aplicarRestriccionUnidad(email) {
   const todosLosSelectores = [
     'selector-unidad-resumen', 'cartera-resumen-unidad',
     'cartera-unidad-negocio', 'recupero-unidad-negocio', 'baja-unidad-negocio',
+    'pv-unidad-negocio', 'conv-unidad-negocio', 'nc-unidad-negocio', 'sg-unidad-negocio', 'masivos-unidad-negocio',
   ];
 
   todosLosSelectores.forEach(id => {
@@ -258,6 +265,22 @@ function fechasDelMesSeleccionado() {
   return { fechaDesde: aISO(desde), fechaHasta: aISO(hasta) };
 }
 
+// Dias habiles: Lunes a Sabado cuentan como dia entero; Domingo no.
+function calcularDiasHabiles() {
+  const [anio, mes] = document.getElementById('selector-rango-resumen').value.split('-').map(Number);
+  const hoy = new Date();
+  hoy.setHours(0, 0, 0, 0);
+  const ultimoDia = new Date(anio, mes, 0).getDate();
+  let totalMes = 0, restantes = 0;
+  for (let d = 1; d <= ultimoDia; d++) {
+    const fecha = new Date(anio, mes - 1, d);
+    if (fecha.getDay() === 0) continue; // domingo no es habil
+    totalMes++;
+    if (fecha >= hoy) restantes++;
+  }
+  return { totalMes, restantes };
+}
+
 document.getElementById('selector-rango-resumen').addEventListener('change', cargarVistaResumen);
 document.getElementById('selector-unidad-resumen').addEventListener('change', cargarVistaResumen);
 
@@ -296,10 +319,12 @@ async function cargarVistaResumen() {
   const pctEfectividad = kpis.dni_trabajados ? (Number(kpis.contacto_directo || 0) / Number(kpis.dni_trabajados)) : 0;
   const masividad = (masividadResp.data && masividadResp.data[0]) || {};
   const formateadorMonedaMasividad = new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', maximumFractionDigits: 0 });
+  const diasHabiles = calcularDiasHabiles();
   const kpisHtml = [
     { etiqueta: 'Total gestiones', valor: formateadorNumero.format(kpis.total_gestiones || 0) },
     { etiqueta: 'DNI trabajados', valor: formateadorNumero.format(kpis.dni_trabajados || 0) },
     { etiqueta: 'Cartera Asignada (DNI)', valor: dniCarteraAsignada !== null ? formateadorNumero.format(dniCarteraAsignada) : '—' },
+    { etiqueta: 'Días hábiles restantes', valor: `${diasHabiles.restantes} / ${diasHabiles.totalMes}` },
     { etiqueta: 'Agentes activos', valor: formateadorNumero.format(kpis.agentes_activos || 0) },
     { etiqueta: 'Contacto directo', valor: formateadorNumero.format(kpis.contacto_directo || 0) },
     { etiqueta: '% Efectividad (contacto directo)', valor: formateadorPorcentaje.format(pctEfectividad) },
@@ -596,7 +621,7 @@ async function cargarLogCargas() {
       <td>${f.estado}</td>
       <td>${f.mensaje || ''}</td>
     </tr>`).join('');
-  ['#tabla-log', '#tabla-log-recupero', '#tabla-log-cartera', '#tabla-log-baja-cartera'].forEach(selector => {
+  ['#tabla-log', '#tabla-log-recupero', '#tabla-log-cartera', '#tabla-log-baja-cartera', '#tabla-log-masivos'].forEach(selector => {
     const tbody = document.querySelector(`${selector} tbody`);
     if (tbody) tbody.innerHTML = filasHtml;
   });
@@ -831,6 +856,221 @@ document.getElementById('form-alta-usuario').addEventListener('submit', async (e
     estadoEl.textContent = resultado.mensaje || 'Usuario creado.';
     estadoEl.className = 'mensaje-estado ok';
     document.getElementById('form-alta-usuario').reset();
+  } catch (err) {
+    estadoEl.textContent = `Error: ${err.message}`;
+    estadoEl.className = 'mensaje-estado error';
+  } finally {
+    boton.disabled = false;
+  }
+});
+
+// ============================================================
+// SEGUIMIENTO: helpers compartidos
+// ============================================================
+async function llenarSelectorUnidadSimple(idSelect) {
+  const { data } = await supabaseClient.rpc('unidades_negocio_disponibles');
+  const select = document.getElementById(idSelect);
+  (data || []).forEach(f => {
+    const opt = document.createElement('option');
+    opt.value = f.unidad_negocio;
+    opt.textContent = f.unidad_negocio;
+    select.appendChild(opt);
+  });
+}
+
+function descargarComoCsv(nombreArchivo, columnas, filas) {
+  const escapar = v => `"${String(v == null ? '' : v).replace(/"/g, '""')}"`;
+  const lineas = [columnas.map(escapar).join(',')];
+  filas.forEach(f => lineas.push(columnas.map(c => escapar(f[c])).join(',')));
+  const blob = new Blob(['\uFEFF' + lineas.join('\n')], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = nombreArchivo;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+// ============================================================
+// PROMESAS VIGENTES
+// ============================================================
+// (llamadas movidas a mostrarApp, ver mas abajo -> estas quedan sin uso pero no rompen nada al quedar duplicadas)
+let ultimasFilasPV = [];
+document.getElementById('pv-unidad-negocio').addEventListener('change', cargarPromesasVigentes);
+document.querySelector('[data-vista="promesas-vigentes"]').addEventListener('click', () => {
+  if (document.getElementById('pv-unidad-negocio').value) cargarPromesasVigentes();
+});
+
+async function cargarPromesasVigentes() {
+  const unidad = document.getElementById('pv-unidad-negocio').value;
+  if (!unidad) return;
+  const { data } = await supabaseClient.rpc('promesas_vigentes_lista', { p_unidad_negocio: unidad, fecha_desde: null, fecha_hasta: null });
+  ultimasFilasPV = data || [];
+  const formateadorMoneda = new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', maximumFractionDigits: 0 });
+
+  document.querySelector('#tabla-pv tbody').innerHTML = ultimasFilasPV.map(f => `
+    <tr>
+      <td>${f.dni_cliente}</td><td>${f.nombre_cliente || ''}</td><td>${f.usuario}</td><td>${f.empresa || ''}</td>
+      <td class="numero">${f.promesa_monto != null ? formateadorMoneda.format(f.promesa_monto) : '—'}</td>
+      <td>${f.promesa_fecha_pago || '—'}</td><td>${f.promesa_fecha_vencimiento || '—'}</td><td>${f.telefono || ''}</td>
+    </tr>`).join('');
+
+  const porAgente = {};
+  ultimasFilasPV.forEach(f => { porAgente[f.usuario] = (porAgente[f.usuario] || 0) + 1; });
+  const etiquetas = Object.keys(porAgente);
+  destruirSiExiste('grafico-pv');
+  graficos['grafico-pv'] = new Chart(document.getElementById('grafico-pv'), {
+    type: 'bar',
+    data: { labels: etiquetas, datasets: [{ label: 'Promesas vigentes', data: etiquetas.map(e => porAgente[e]), backgroundColor: COLOR_BRONCE }] },
+    options: { responsive: true, plugins: { legend: { display: false } } },
+  });
+}
+
+document.getElementById('btn-descargar-pv').addEventListener('click', () => {
+  if (!ultimasFilasPV.length) { alert('No hay datos para descargar.'); return; }
+  descargarComoCsv('Promesas_Vigentes.csv',
+    ['dni_cliente', 'nombre_cliente', 'usuario', 'empresa', 'promesa_monto', 'promesa_fecha_pago', 'promesa_fecha_vencimiento', 'telefono'],
+    ultimasFilasPV);
+});
+
+// ============================================================
+// CONVENIOS
+// ============================================================
+let ultimasFilasConv = [];
+document.getElementById('conv-unidad-negocio').addEventListener('change', cargarConvenios);
+document.querySelector('[data-vista="convenios"]').addEventListener('click', () => {
+  if (document.getElementById('conv-unidad-negocio').value) cargarConvenios();
+});
+
+async function cargarConvenios() {
+  const unidad = document.getElementById('conv-unidad-negocio').value;
+  if (!unidad) return;
+  const { data } = await supabaseClient.rpc('convenios_detectados_lista', { p_unidad_negocio: unidad, fecha_desde: null, fecha_hasta: null });
+  ultimasFilasConv = data || [];
+
+  document.querySelector('#tabla-conv tbody').innerHTML = ultimasFilasConv.map(f => `
+    <tr>
+      <td>${f.dni_cliente}</td><td>${f.nombre_cliente || ''}</td><td>${f.usuario}</td><td>${f.fecha}</td>
+      <td>${f.frase_detectada}</td><td>${(f.observaciones || '').slice(0, 120)}</td>
+    </tr>`).join('');
+
+  const porAgente = {};
+  ultimasFilasConv.forEach(f => { porAgente[f.usuario] = (porAgente[f.usuario] || 0) + 1; });
+  const etiquetas = Object.keys(porAgente);
+  destruirSiExiste('grafico-conv');
+  graficos['grafico-conv'] = new Chart(document.getElementById('grafico-conv'), {
+    type: 'bar',
+    data: { labels: etiquetas, datasets: [{ label: 'Convenios detectados', data: etiquetas.map(e => porAgente[e]), backgroundColor: COLOR_VERDE }] },
+    options: { responsive: true, plugins: { legend: { display: false } } },
+  });
+}
+
+document.getElementById('btn-descargar-conv').addEventListener('click', () => {
+  if (!ultimasFilasConv.length) { alert('No hay datos para descargar.'); return; }
+  descargarComoCsv('Convenios_Detectados.csv',
+    ['dni_cliente', 'nombre_cliente', 'usuario', 'fecha', 'frase_detectada', 'observaciones'],
+    ultimasFilasConv);
+});
+
+// ============================================================
+// NO CONTACTADOS
+// ============================================================
+let ultimasFilasNC = [];
+document.getElementById('nc-unidad-negocio').addEventListener('change', cargarNoContactados);
+document.querySelector('[data-vista="no-contactados"]').addEventListener('click', () => {
+  if (document.getElementById('nc-unidad-negocio').value) cargarNoContactados();
+});
+
+async function cargarNoContactados() {
+  const unidad = document.getElementById('nc-unidad-negocio').value;
+  if (!unidad) return;
+  const { data } = await supabaseClient.rpc('cartera_no_contactados_lista', { p_unidad_negocio: unidad, fecha_desde: null, fecha_hasta: null });
+  ultimasFilasNC = data || [];
+  const formateadorMoneda = new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', maximumFractionDigits: 0 });
+
+  document.getElementById('nc-kpis').innerHTML = `
+    <div class="tarjeta-kpi"><span class="valor">${formateadorNumero.format(ultimasFilasNC.length)}</span><span class="etiqueta">Casos sin contacto logrado</span></div>`;
+
+  document.querySelector('#tabla-nc tbody').innerHTML = ultimasFilasNC.slice(0, 500).map(f => `
+    <tr>
+      <td>${f.nro_documento}</td><td>${(f.nombre_causa || '').trim()}</td>
+      <td class="numero">${formateadorMoneda.format(f.deuda_total || 0)}</td>
+      <td>${f.box || ''}</td><td>${f.provincia || ''}</td>
+      <td class="numero">${f.intentos}</td><td>${f.ultimo_intento || ''}</td><td>${f.ultimo_telefono || ''}</td>
+    </tr>`).join('');
+}
+
+document.getElementById('btn-descargar-nc').addEventListener('click', () => {
+  if (!ultimasFilasNC.length) { alert('No hay datos para descargar.'); return; }
+  descargarComoCsv('No_Contactados_para_enriquecer.csv',
+    ['nro_documento', 'nombre_causa', 'deuda_total', 'box', 'provincia', 'intentos', 'ultimo_intento', 'ultimo_telefono'],
+    ultimasFilasNC);
+});
+
+// ============================================================
+// SIN GESTION
+// ============================================================
+let ultimasFilasSG = [];
+document.getElementById('sg-unidad-negocio').addEventListener('change', cargarSinGestion);
+document.querySelector('[data-vista="sin-gestion"]').addEventListener('click', () => {
+  if (document.getElementById('sg-unidad-negocio').value) cargarSinGestion();
+});
+
+async function cargarSinGestion() {
+  const unidad = document.getElementById('sg-unidad-negocio').value;
+  if (!unidad) return;
+  const { data } = await supabaseClient.rpc('cartera_sin_gestion_lista', { p_unidad_negocio: unidad, fecha_desde: null, fecha_hasta: null });
+  ultimasFilasSG = data || [];
+  const formateadorMoneda = new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', maximumFractionDigits: 0 });
+
+  document.getElementById('sg-kpis').innerHTML = `
+    <div class="tarjeta-kpi"><span class="valor">${formateadorNumero.format(ultimasFilasSG.length)}</span><span class="etiqueta">DNI nunca tocados este período</span></div>`;
+
+  document.querySelector('#tabla-sg tbody').innerHTML = ultimasFilasSG.slice(0, 500).map(f => `
+    <tr>
+      <td>${f.nro_documento}</td><td>${(f.nombre_causa || '').trim()}</td>
+      <td class="numero">${formateadorMoneda.format(f.deuda_total || 0)}</td>
+      <td>${f.box || ''}</td><td>${f.provincia || ''}</td>
+    </tr>`).join('');
+}
+
+document.getElementById('btn-descargar-sg').addEventListener('click', () => {
+  if (!ultimasFilasSG.length) { alert('No hay datos para descargar.'); return; }
+  descargarComoCsv('Sin_Gestion.csv',
+    ['nro_documento', 'nombre_causa', 'deuda_total', 'box', 'provincia'],
+    ultimasFilasSG);
+});
+
+// ============================================================
+// CARGAR MASIVOS
+// ============================================================
+document.getElementById('form-cargar-masivos').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const estadoEl = document.getElementById('masivos-estado');
+  const boton = document.getElementById('btn-cargar-masivos');
+  estadoEl.textContent = 'Subiendo…';
+  estadoEl.className = 'mensaje-estado';
+  boton.disabled = true;
+
+  const { data: { session } } = await supabaseClient.auth.getSession();
+  const formData = new FormData();
+  formData.append('archivo', document.getElementById('archivo-masivos').files[0]);
+  formData.append('unidad_negocio', document.getElementById('masivos-unidad-negocio').value);
+  formData.append('canal', document.getElementById('masivos-canal').value);
+
+  try {
+    const respuesta = await fetch(`${CONFIG.BACKEND_URL}/upload-masivos`, {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${session.access_token}` },
+      body: formData,
+    });
+    const resultado = await respuesta.json();
+    if (!respuesta.ok) throw new Error(resultado.detail || 'Error desconocido');
+
+    estadoEl.textContent = 'Procesando… esta pantalla se va a actualizar sola cuando termine.';
+    estadoEl.className = 'mensaje-estado ok';
+    const horaInicio = new Date().toISOString();
+    esperarFinalizacionYRefrescar(estadoEl, horaInicio, 'Listo — los envíos ya están cargados.');
   } catch (err) {
     estadoEl.textContent = `Error: ${err.message}`;
     estadoEl.className = 'mensaje-estado error';
