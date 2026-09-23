@@ -57,11 +57,22 @@
     <nav class="menu-lateral" id="nav-pestanas">
       <button class="pestana activa" data-vista="resumen">Resumen</button>
       <button class="pestana" data-vista="cartera-resumen">Cartera</button>
+
+      <div class="etiqueta-grupo-menu">Operatividad</div>
       <button class="pestana" data-vista="cargar">Cargar Gestiones</button>
       <button class="pestana" data-vista="cargar-recupero">Cargar Recupero</button>
       <button class="pestana" data-vista="cargar-cartera">Cargar Cartera</button>
       <button class="pestana" data-vista="baja-cartera">Dar de baja Cartera</button>
-      <button class="pestana" data-vista="configuracion">Configuración</button>
+
+      <div class="etiqueta-grupo-menu">Seguimiento</div>
+      <button class="pestana" data-vista="promesas-vigentes">Promesas Vigentes</button>
+      <button class="pestana" data-vista="convenios">Convenios</button>
+      <button class="pestana" data-vista="no-contactados">No Contactados</button>
+      <button class="pestana" data-vista="sin-gestion">Sin Gestión</button>
+      <button class="pestana" data-vista="cargar-masivos">Cargar Masivos</button>
+
+      <div class="etiqueta-grupo-menu">Configuración</div>
+      <button class="pestana" data-vista="configuracion">Agentes y Usuarios</button>
     </nav>
 
     <main>
@@ -281,6 +292,128 @@
         <div class="tabla-contenedor">
           <h3>Historial de cargas</h3>
           <table id="tabla-log-baja-cartera">
+            <thead><tr><th>Fecha</th><th>Usuario</th><th>Estado</th><th>Detalle</th></tr></thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- ---------- VISTA: PROMESAS VIGENTES ---------- -->
+      <section id="vista-promesas-vigentes" class="vista oculto">
+        <h2>Promesas Vigentes</h2>
+        <p class="ayuda">Promesas de pago registradas por los agentes que todavía no vencieron y que aún no muestran un pago en Recupero. Elegí una unidad para verlas.</p>
+        <div class="fila-titulo-selector">
+          <span class="etiqueta-actualizado">Unidad de negocio</span>
+          <select id="pv-unidad-negocio"><option value="" disabled selected>Elegí una unidad</option></select>
+          <button type="button" id="btn-descargar-pv" class="btn-secundario">Descargar casos</button>
+        </div>
+        <div class="grilla-graficos">
+          <details class="tarjeta-grafico desplegable" open>
+            <summary>Promesas vigentes por agente</summary>
+            <canvas id="grafico-pv"></canvas>
+          </details>
+        </div>
+        <details class="tabla-contenedor desplegable" open>
+          <summary>Detalle</summary>
+          <table id="tabla-pv">
+            <thead><tr><th>DNI</th><th>Nombre</th><th>Agente</th><th>Empresa</th><th class="numero">Monto</th><th>Fecha Promesa</th><th>Vencimiento</th><th>Teléfono</th></tr></thead>
+            <tbody></tbody>
+          </table>
+        </details>
+      </section>
+
+      <!-- ---------- VISTA: CONVENIOS ---------- -->
+      <section id="vista-convenios" class="vista oculto">
+        <h2>Convenios</h2>
+        <p class="ayuda">Gestiones cuyas observaciones mencionan un convenio o plan de pagos (detectado por texto — puede tener falsos positivos/negativos, revisá el detalle).</p>
+        <div class="fila-titulo-selector">
+          <span class="etiqueta-actualizado">Unidad de negocio</span>
+          <select id="conv-unidad-negocio"><option value="" disabled selected>Elegí una unidad</option></select>
+          <button type="button" id="btn-descargar-conv" class="btn-secundario">Descargar casos</button>
+        </div>
+        <div class="grilla-graficos">
+          <details class="tarjeta-grafico desplegable" open>
+            <summary>Convenios detectados por agente</summary>
+            <canvas id="grafico-conv"></canvas>
+          </details>
+        </div>
+        <details class="tabla-contenedor desplegable" open>
+          <summary>Detalle</summary>
+          <table id="tabla-conv">
+            <thead><tr><th>DNI</th><th>Nombre</th><th>Agente</th><th>Fecha</th><th>Frase detectada</th><th>Observaciones</th></tr></thead>
+            <tbody></tbody>
+          </table>
+        </details>
+      </section>
+
+      <!-- ---------- VISTA: NO CONTACTADOS ---------- -->
+      <section id="vista-no-contactados" class="vista oculto">
+        <h2>No Contactados</h2>
+        <p class="ayuda">Casos con intentos de gestión en el período, pero donde ninguno logró contacto (todos "Sin Contacto") — candidatos a enriquecer datos de contacto.</p>
+        <div class="fila-titulo-selector">
+          <span class="etiqueta-actualizado">Unidad de negocio</span>
+          <select id="nc-unidad-negocio"><option value="" disabled selected>Elegí una unidad</option></select>
+          <button type="button" id="btn-descargar-nc" class="btn-secundario">Descargar para enriquecer</button>
+        </div>
+        <div class="tarjetas-kpi" id="nc-kpis"></div>
+        <details class="tabla-contenedor desplegable" open>
+          <summary>Detalle</summary>
+          <table id="tabla-nc">
+            <thead><tr><th>DNI</th><th>Nombre</th><th class="numero">Deuda</th><th>Box</th><th>Provincia</th><th class="numero">Intentos</th><th>Último intento</th><th>Último teléfono</th></tr></thead>
+            <tbody></tbody>
+          </table>
+        </details>
+      </section>
+
+      <!-- ---------- VISTA: SIN GESTION ---------- -->
+      <section id="vista-sin-gestion" class="vista oculto">
+        <h2>Sin Gestión</h2>
+        <p class="ayuda">Casos de la Cartera Asignada que no recibieron ninguna gestión ni envío masivo en el período — nunca se tocaron.</p>
+        <div class="fila-titulo-selector">
+          <span class="etiqueta-actualizado">Unidad de negocio</span>
+          <select id="sg-unidad-negocio"><option value="" disabled selected>Elegí una unidad</option></select>
+          <button type="button" id="btn-descargar-sg" class="btn-secundario">Descargar casos</button>
+        </div>
+        <div class="tarjetas-kpi" id="sg-kpis"></div>
+        <details class="tabla-contenedor desplegable" open>
+          <summary>Detalle (primeras 500 filas — descargá para ver todo)</summary>
+          <table id="tabla-sg">
+            <thead><tr><th>DNI</th><th>Nombre</th><th class="numero">Deuda</th><th>Box</th><th>Provincia</th></tr></thead>
+            <tbody></tbody>
+          </table>
+        </details>
+      </section>
+
+      <!-- ---------- VISTA: CARGAR MASIVOS ---------- -->
+      <section id="vista-cargar-masivos" class="vista oculto">
+        <h2>Cargar Envíos Masivos</h2>
+        <p class="ayuda">Subí el archivo de envíos masivos (mail o SMS) de una unidad — columnas de DNI, Nombre y Ficha/Crédito. Esto se usa para medir si se tocó toda la cartera al menos una vez (gestión o envío masivo), no cuenta como contacto directo.</p>
+        <form id="form-cargar-masivos" class="tarjeta-carga">
+          <label class="campo-archivo">
+            Unidad de negocio
+            <select id="masivos-unidad-negocio" required>
+              <option value="" disabled selected>Elegí una unidad</option>
+              <option value="ON CITY JUDICIAL">ON CITY JUDICIAL</option>
+              <option value="CFN JUDICIAL">CFN JUDICIAL</option>
+              <option value="ON CITY TERCERIZADO">ON CITY TERCERIZADO</option>
+              <option value="CFN TERCERIZADO">CFN TERCERIZADO</option>
+              <option value="GERENCIAR RECUPERA">GERENCIAR RECUPERA</option>
+            </select>
+          </label>
+          <label class="campo-archivo">
+            Canal
+            <select id="masivos-canal" required>
+              <option value="EMAIL">Email</option>
+              <option value="SMS">SMS</option>
+            </select>
+          </label>
+          <label class="campo-archivo">Archivo (DNI, Nombre, Ficha) <input type="file" id="archivo-masivos" accept=".xlsx,.csv" required></label>
+          <button type="submit" id="btn-cargar-masivos">Cargar</button>
+          <p id="masivos-estado" class="mensaje-estado"></p>
+        </form>
+        <div class="tabla-contenedor">
+          <h3>Historial de cargas</h3>
+          <table id="tabla-log-masivos">
             <thead><tr><th>Fecha</th><th>Usuario</th><th>Estado</th><th>Detalle</th></tr></thead>
             <tbody></tbody>
           </table>
