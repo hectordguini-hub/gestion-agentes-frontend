@@ -254,6 +254,10 @@
             </select>
           </label>
           <label class="campo-archivo">Archivo de Cartera (fichas nuevas de la semana) <input type="file" id="archivo-cartera" accept=".xlsx" required></label>
+          <label class="campo-checkbox">
+            <input type="checkbox" id="cartera-solo-actualizar">
+            Solo actualizar fichas que ya existen (no dar de alta nuevas — para completar datos como teléfono/email sin volver a agregar fichas que ya diste de baja)
+          </label>
           <button type="submit" id="btn-cargar-cartera">Cargar Cartera</button>
           <p id="cartera-estado" class="mensaje-estado"></p>
         </form>
