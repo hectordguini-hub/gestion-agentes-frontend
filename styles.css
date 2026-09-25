@@ -313,6 +313,8 @@ td.numero, th.numero { font-family: 'IBM Plex Mono', monospace; text-align: righ
   margin-bottom: 2rem;
 }
 .campo-archivo { display: flex; flex-direction: column; gap: 0.3rem; font-size: 0.85rem; color: var(--texto-tenue); }
+.campo-checkbox { display: flex; align-items: flex-start; gap: 0.5rem; font-size: 0.85rem; color: var(--texto-tenue); line-height: 1.4; }
+.campo-checkbox input { margin-top: 0.2rem; }
 .campo-archivo input { font-family: 'Fira Sans', sans-serif; font-size: 0.85rem; }
 .mensaje-estado { font-size: 0.85rem; min-height: 1.1rem; margin: 0; }
 .mensaje-estado.ok { color: var(--verde-recupero); }
