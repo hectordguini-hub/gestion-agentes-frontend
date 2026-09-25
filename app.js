@@ -192,7 +192,7 @@ document.getElementById('btn-descargar-cartera').addEventListener('click', async
       estadoEl.textContent = `Descargando… ${filas.length} fichas traídas`;
       const { data, error } = await supabaseClient
         .from('cartera_asignada')
-        .select('compania, ficha, box, nro_documento, nombre_causa, deuda_total, fecha_inicio_estudio, provincia, rango, estado')
+        .select('compania, ficha, box, nro_documento, nombre_causa, deuda_total, fecha_inicio_estudio, provincia, rango, estado, telefono_1, telefono_2, telefono_3, email')
         .eq('unidad_negocio', unidad)
         .order('id', { ascending: true })
         .range(desde, desde + tamanoPagina - 1);
@@ -725,6 +725,7 @@ document.getElementById('form-cargar-cartera').addEventListener('submit', async 
   const formData = new FormData();
   formData.append('archivo', document.getElementById('archivo-cartera').files[0]);
   formData.append('unidad_negocio', document.getElementById('cartera-unidad-negocio').value);
+  formData.append('solo_actualizar_existentes', document.getElementById('cartera-solo-actualizar').checked);
 
   try {
     const respuesta = await fetch(`${CONFIG.BACKEND_URL}/upload-cartera`, {
