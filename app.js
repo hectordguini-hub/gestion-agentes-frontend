@@ -337,12 +337,17 @@ async function cargarVistaResumen() {
     { etiqueta: '% Efectividad (contacto directo)', valor: formateadorPorcentaje.format(pctEfectividad) },
     { etiqueta: 'Pagos por mensajes masivos', valor: `${formateadorNumero.format(masividad.dni_con_pago || 0)} (${formateadorMonedaMasividad.format(masividad.monto_recaudado || 0)})` },
   ];
-  if (UNIDADES_OBJETIVO_1_5.includes(unidadNegocio) && embudoParaKpi) {
+  if (embudoParaKpi) {
     const objetivo = objetivoRecaudacion(unidadNegocio);
+    const metaEnPesos = (embudoParaKpi.deuda_cartera || 0) * objetivo;
     const pctReal = embudoParaKpi.deuda_cartera ? embudoParaKpi.recaudacion / embudoParaKpi.deuda_cartera : 0;
     kpisHtml.push({
-      etiqueta: `Meta Recupero (${formateadorPorcentaje.format(objetivo)})`,
-      valor: `${formateadorMonedaMasividad.format(embudoParaKpi.recaudacion || 0)} (${formateadorPorcentaje.format(pctReal)})`,
+      etiqueta: `Meta de Recupero (${formateadorPorcentaje.format(objetivo)} de la cartera)`,
+      valor: formateadorMonedaMasividad.format(metaEnPesos),
+    });
+    kpisHtml.push({
+      etiqueta: `Recaudado (${formateadorPorcentaje.format(pctReal)} de la cartera)`,
+      valor: formateadorMonedaMasividad.format(embudoParaKpi.recaudacion || 0),
     });
   }
   document.getElementById('kpis-resumen').innerHTML = kpisHtml.map(k => `
