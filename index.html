@@ -57,6 +57,7 @@
     <nav class="menu-lateral" id="nav-pestanas">
       <button class="pestana activa" data-vista="resumen">Resumen</button>
       <button class="pestana" data-vista="cartera-resumen">Cartera</button>
+      <button class="pestana" data-vista="comparativo">Comparativo</button>
 
       <div class="etiqueta-grupo-menu">Operatividad</div>
       <button class="pestana" data-vista="cargar">Cargar Gestiones</button>
@@ -300,6 +301,40 @@
             <tbody></tbody>
           </table>
         </div>
+      </section>
+
+      <!-- ---------- VISTA: COMPARATIVO ---------- -->
+      <section id="vista-comparativo" class="vista oculto">
+        <h2>Comparativo</h2>
+        <p class="ayuda">Basado en Gestiones y Recupero (tienen fecha real y nunca se pisan entre meses) — no incluye métricas de Cartera Asignada, que al actualizarse cada semana no permite comparar el pasado de forma confiable.</p>
+        <div class="fila-titulo-selector">
+          <span class="etiqueta-actualizado">Unidad de negocio</span>
+          <select id="comp-unidad-negocio">
+            <option value="">Todas</option>
+            <option value="ON CITY JUDICIAL">ON CITY JUDICIAL</option>
+            <option value="CFN JUDICIAL">CFN JUDICIAL</option>
+            <option value="ON CITY TERCERIZADO">ON CITY TERCERIZADO</option>
+            <option value="CFN TERCERIZADO">CFN TERCERIZADO</option>
+            <option value="GERENCIAR RECUPERA">GERENCIAR RECUPERA</option>
+          </select>
+        </div>
+
+        <details class="tarjeta-grafico ancho-completo desplegable" open>
+          <summary>General — últimos 6 meses</summary>
+          <canvas id="grafico-comp-mensual"></canvas>
+        </details>
+        <details class="tabla-contenedor desplegable" open>
+          <summary>Detalle mensual</summary>
+          <table id="tabla-comp-mensual">
+            <thead><tr><th>Mes</th><th class="numero">Total Gestiones</th><th class="numero">DNI Trabajados</th><th class="numero">Contacto Directo</th><th class="numero">% Efectividad</th><th class="numero">Recaudación</th></tr></thead>
+            <tbody></tbody>
+          </table>
+        </details>
+
+        <details class="tarjeta-grafico ancho-completo desplegable" open>
+          <summary>Diario — mes en curso</summary>
+          <canvas id="grafico-comp-diario"></canvas>
+        </details>
       </section>
 
       <!-- ---------- VISTA: PROMESAS VIGENTES ---------- -->
