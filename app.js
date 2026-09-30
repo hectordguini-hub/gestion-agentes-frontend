@@ -86,7 +86,7 @@ async function aplicarRestriccionUnidad(email) {
 
   const unidadesPermitidas = data.map(f => f.unidad_negocio);
   const todosLosSelectores = [
-    'selector-unidad-resumen', 'cartera-resumen-unidad',
+    'selector-unidad-resumen', 'cartera-resumen-unidad', 'comp-unidad-negocio',
     'cartera-unidad-negocio', 'recupero-unidad-negocio', 'baja-unidad-negocio',
     'pv-unidad-negocio', 'conv-unidad-negocio', 'nc-unidad-negocio', 'sg-unidad-negocio', 'masivos-unidad-negocio',
   ];
@@ -1130,3 +1130,64 @@ document.getElementById('form-cargar-masivos').addEventListener('submit', async 
     boton.disabled = false;
   }
 });
+
+// ============================================================
+// COMPARATIVO (mensual y diario) — basado en Gestiones y Recupero
+// ============================================================
+document.getElementById('comp-unidad-negocio').addEventListener('change', cargarComparativo);
+document.querySelector('[data-vista="comparativo"]').addEventListener('click', cargarComparativo);
+
+async function cargarComparativo() {
+  const unidad = document.getElementById('comp-unidad-negocio').value || null;
+  const formateadorMoneda = new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', maximumFractionDigits: 0 });
+  const formateadorMes = f => new Date(f + 'T00:00:00').toLocaleDateString('es-AR', { month: 'short', year: 'numeric' });
+
+  const [{ data: mensual }, { data: diario }] = await Promise.all([
+    supabaseClient.rpc('comparativo_mensual', { p_unidad_negocio: unidad, meses: 6 }),
+    supabaseClient.rpc('comparativo_diario', { p_unidad_negocio: unidad, fecha_desde: null, fecha_hasta: null }),
+  ]);
+
+  const filasMes = mensual || [];
+  document.querySelector('#tabla-comp-mensual tbody').innerHTML = filasMes.map(f => `
+    <tr>
+      <td>${formateadorMes(f.mes)}</td>
+      <td class="numero">${formateadorNumero.format(f.total_gestiones)}</td>
+      <td class="numero">${formateadorNumero.format(f.dni_trabajados)}</td>
+      <td class="numero">${formateadorNumero.format(f.contacto_directo)}</td>
+      <td class="numero">${formateadorPorcentaje.format(f.pct_efectividad)}</td>
+      <td class="numero">${formateadorMoneda.format(f.recaudacion)}</td>
+    </tr>`).join('');
+
+  destruirSiExiste('grafico-comp-mensual');
+  graficos['grafico-comp-mensual'] = new Chart(document.getElementById('grafico-comp-mensual'), {
+    data: {
+      labels: filasMes.map(f => formateadorMes(f.mes)),
+      datasets: [
+        { type: 'bar', label: 'Total Gestiones', data: filasMes.map(f => f.total_gestiones), backgroundColor: COLOR_TINTA, yAxisID: 'y' },
+        { type: 'bar', label: 'Contacto Directo', data: filasMes.map(f => f.contacto_directo), backgroundColor: COLOR_BRONCE, yAxisID: 'y' },
+        { type: 'line', label: 'Recaudación', data: filasMes.map(f => f.recaudacion), borderColor: COLOR_VERDE, backgroundColor: COLOR_VERDE, yAxisID: 'y1', tension: 0.3 },
+      ],
+    },
+    options: {
+      responsive: true,
+      scales: {
+        y: { position: 'left', title: { display: true, text: 'Gestiones' } },
+        y1: { position: 'right', title: { display: true, text: 'Recaudación ($)' }, grid: { drawOnChartArea: false } },
+      },
+    },
+  });
+
+  const filasDia = diario || [];
+  destruirSiExiste('grafico-comp-diario');
+  graficos['grafico-comp-diario'] = new Chart(document.getElementById('grafico-comp-diario'), {
+    type: 'line',
+    data: {
+      labels: filasDia.map(f => f.fecha),
+      datasets: [
+        { label: 'Total Gestiones', data: filasDia.map(f => f.total_gestiones), borderColor: COLOR_TINTA, tension: 0.3 },
+        { label: 'Contacto Directo', data: filasDia.map(f => f.contacto_directo), borderColor: COLOR_BRONCE, tension: 0.3 },
+      ],
+    },
+    options: { responsive: true },
+  });
+}
