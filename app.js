@@ -342,7 +342,7 @@ async function cargarVistaResumen() {
     const metaEnPesos = (embudoParaKpi.deuda_cartera || 0) * objetivo;
     const pctReal = embudoParaKpi.deuda_cartera ? embudoParaKpi.recaudacion / embudoParaKpi.deuda_cartera : 0;
     kpisHtml.push({
-      etiqueta: `Meta de Recupero (${formateadorPorcentaje.format(objetivo)} de la cartera)`,
+      etiqueta: `Objetivo (${formateadorPorcentaje.format(objetivo)} de la cartera)`,
       valor: formateadorMonedaMasividad.format(metaEnPesos),
     });
     kpisHtml.push({
