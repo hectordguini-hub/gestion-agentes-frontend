@@ -316,6 +316,7 @@ async function cargarVistaResumen() {
   const porCanal = porCanalResp.data || [];
   const porEfecto = porEfectoResp.data || [];
   const dniCarteraAsignada = carteraDniResp.data && carteraDniResp.data[0] ? carteraDniResp.data[0].dni_cartera : null;
+  const embudoParaKpi = (carteraDniResp.data && carteraDniResp.data[0]) || null;
 
   // ---- KPIs ----
   // % Efectividad = contacto directo (por ultima gestion de cada DNI)
@@ -336,6 +337,14 @@ async function cargarVistaResumen() {
     { etiqueta: '% Efectividad (contacto directo)', valor: formateadorPorcentaje.format(pctEfectividad) },
     { etiqueta: 'Pagos por mensajes masivos', valor: `${formateadorNumero.format(masividad.dni_con_pago || 0)} (${formateadorMonedaMasividad.format(masividad.monto_recaudado || 0)})` },
   ];
+  if (UNIDADES_OBJETIVO_1_5.includes(unidadNegocio) && embudoParaKpi) {
+    const objetivo = objetivoRecaudacion(unidadNegocio);
+    const pctReal = embudoParaKpi.deuda_cartera ? embudoParaKpi.recaudacion / embudoParaKpi.deuda_cartera : 0;
+    kpisHtml.push({
+      etiqueta: `Meta Recupero (${formateadorPorcentaje.format(objetivo)})`,
+      valor: `${formateadorMonedaMasividad.format(embudoParaKpi.recaudacion || 0)} (${formateadorPorcentaje.format(pctReal)})`,
+    });
+  }
   document.getElementById('kpis-resumen').innerHTML = kpisHtml.map(k => `
     <div class="tarjeta-kpi"><span class="valor">${k.valor}</span><span class="etiqueta">${k.etiqueta}</span></div>`).join('');
 
@@ -463,6 +472,12 @@ async function cargarVistaResumen() {
 // EMBUDO DE EFECTIVIDAD Y CONTACTABILIDAD DE LA CARTERA
 // ============================================================
 const OBJETIVOS_EMBUDO = { contacto: 0.20, promesas: 0.50, cumplidas: 0.60, recaudacion: 0.02 };
+// ON CITY JUDICIAL, CFN JUDICIAL y GERENCIAR RECUPERA tienen una meta de
+// recupero mas baja (1,5%) que el resto (2%, valor por defecto).
+const UNIDADES_OBJETIVO_1_5 = ['ON CITY JUDICIAL', 'CFN JUDICIAL', 'GERENCIAR RECUPERA'];
+function objetivoRecaudacion(unidadNegocio) {
+  return UNIDADES_OBJETIVO_1_5.includes(unidadNegocio) ? 0.015 : OBJETIVOS_EMBUDO.recaudacion;
+}
 
 async function cargarEmbudoYContactabilidad(unidadNegocio, fechaDesde, fechaHasta, embudoRespPrevio, pctEfectividadKpi) {
   const mensajeSinUnidad = document.getElementById('embudo-mensaje-sin-unidad');
@@ -528,7 +543,7 @@ async function cargarEmbudoYContactabilidad(unidadNegocio, fechaDesde, fechaHast
     filaEmbudo('Contacto a Titular', e.dni_contactados_titular || 0, pctContacto, OBJETIVOS_EMBUDO.contacto, false) +
     filaEmbudo('Promesas de Pago', e.dni_promesas || 0, pctPromesas, OBJETIVOS_EMBUDO.promesas, false) +
     filaEmbudo('Promesas Cumplidas', e.dni_promesas_cumplidas || 0, pctCumplidas, OBJETIVOS_EMBUDO.cumplidas, false) +
-    filaEmbudo('Recaudación (sobre Cartera Asignada)', e.recaudacion || 0, pctRecaudacion, OBJETIVOS_EMBUDO.recaudacion, true) +
+    filaEmbudo('Recaudación (sobre Cartera Asignada)', e.recaudacion || 0, pctRecaudacion, objetivoRecaudacion(unidadNegocio), true) +
     (esUnidadJudicial ? filaSoloMonto('Recaudación (Total Compañía)', e.recaudacion_total_compania || 0) : '');
 
 
