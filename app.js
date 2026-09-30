@@ -481,7 +481,7 @@ const OBJETIVOS_EMBUDO = { contacto: 0.20, promesas: 0.50, cumplidas: 0.60, reca
 // recupero mas baja (1,5%) que el resto (2%, valor por defecto).
 const UNIDADES_OBJETIVO_1_5 = ['ON CITY JUDICIAL', 'CFN JUDICIAL', 'GERENCIAR RECUPERA'];
 function objetivoRecaudacion(unidadNegocio) {
-  return UNIDADES_OBJETIVO_1_5.includes(unidadNegocio) ? 0.015 : OBJETIVOS_EMBUDO.recaudacion;
+  return UNIDADES_OBJETIVO_1_5.includes(unidadNegocio) ? 0.005 : OBJETIVOS_EMBUDO.recaudacion;
 }
 
 async function cargarEmbudoYContactabilidad(unidadNegocio, fechaDesde, fechaHasta, embudoRespPrevio, pctEfectividadKpi) {
