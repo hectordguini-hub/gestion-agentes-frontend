@@ -819,7 +819,7 @@ async function cargarTablaAgentesConfig() {
     <tr>
       <td>${a.unidad_negocio}</td>
       <td>${a.box}</td>
-      <td>${a.agente}</td>
+      <td>${a.agente}${a.horas == null ? ' <span class="etiqueta-alias">(alias de escritura — no suma horas aparte)</span>' : ''}</td>
       <td class="numero">${a.horas != null ? a.horas : '—'}</td>
       <td>${a.activo ? 'Activo' : 'Baja'}</td>
       <td><button type="button" class="btn-secundario btn-toggle-agente" data-unidad="${a.unidad_negocio}" data-box="${a.box}" data-agente="${a.agente}" data-activo="${a.activo}">${a.activo ? 'Dar de baja' : 'Reactivar'}</button></td>
