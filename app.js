@@ -294,7 +294,7 @@ async function cargarVistaResumen() {
   const { fechaDesde, fechaHasta } = fechasDelMesSeleccionado();
   const unidadNegocio = document.getElementById('selector-unidad-resumen').value || null;
 
-  const [kpisResp, porAgenteDiaResp, efectividadResp, porCanalResp, porEfectoResp, extendidoResp, masividadResp, carteraDniResp] = await Promise.all([
+  const [kpisResp, porAgenteDiaResp, efectividadResp, porCanalResp, porEfectoResp, extendidoResp, masividadResp, carteraDniResp, objetivoFijoResp] = await Promise.all([
     supabaseClient.rpc('gestiones_kpis', { fecha_desde: fechaDesde, fecha_hasta: fechaHasta, p_unidad_negocio: unidadNegocio }),
     supabaseClient.rpc('gestiones_por_agente_dia', { fecha_desde: fechaDesde, fecha_hasta: fechaHasta, p_unidad_negocio: unidadNegocio }),
     supabaseClient.rpc('gestiones_efectividad_por_agente', { fecha_desde: fechaDesde, fecha_hasta: fechaHasta, p_unidad_negocio: unidadNegocio }),
@@ -304,6 +304,13 @@ async function cargarVistaResumen() {
     supabaseClient.rpc('gestiones_masividad', { fecha_desde: fechaDesde, fecha_hasta: fechaHasta, p_unidad_negocio: unidadNegocio }),
     unidadNegocio
       ? supabaseClient.rpc('cartera_embudo_efectividad', { p_unidad_negocio: unidadNegocio, fecha_desde: fechaDesde, fecha_hasta: fechaHasta })
+      : Promise.resolve({ data: null }),
+    // Objetivo "congelado": la deuda total de la cartera tal como quedó
+    // registrada la última vez que se cargó una cartera completa para esta
+    // unidad — no se mueve con las bajas posteriores, porque el cliente
+    // mide el objetivo sobre lo que nos asignó originalmente.
+    unidadNegocio
+      ? supabaseClient.rpc('cartera_objetivo_congelado', { p_unidad_negocio: unidadNegocio })
       : Promise.resolve({ data: null }),
   ]);
 
@@ -339,15 +346,27 @@ async function cargarVistaResumen() {
   ];
   if (embudoParaKpi) {
     const objetivo = objetivoRecaudacion(unidadNegocio);
-    const metaEnPesos = (embudoParaKpi.deuda_cartera || 0) * objetivo;
-    const pctReal = embudoParaKpi.deuda_cartera ? embudoParaKpi.recaudacion / embudoParaKpi.deuda_cartera : 0;
+    // Base del objetivo: la deuda "congelada" al momento de la última
+    // carga de cartera completa, si ya existe esa foto; si todavía no se
+    // cargó ninguna cartera para esta unidad desde que existe esta foto,
+    // se usa la deuda en vivo como respaldo.
+    const objetivoFijo = (objetivoFijoResp.data && objetivoFijoResp.data[0]) || null;
+    const deudaBaseObjetivo = objetivoFijo ? Number(objetivoFijo.deuda_total_congelada) : (embudoParaKpi.deuda_cartera || 0);
+    const metaEnPesos = deudaBaseObjetivo * objetivo;
+    const recaudado = embudoParaKpi.recaudacion || 0;
+    const pctReal = embudoParaKpi.deuda_cartera ? recaudado / embudoParaKpi.deuda_cartera : 0;
+    const pctCumplimientoObjetivo = metaEnPesos ? recaudado / metaEnPesos : 0;
     kpisHtml.push({
-      etiqueta: `Objetivo (${formateadorPorcentaje.format(objetivo)} de la cartera)`,
+      etiqueta: `Objetivo (${formateadorPorcentaje.format(objetivo)} de la cartera asignada)`,
       valor: formateadorMonedaMasividad.format(metaEnPesos),
     });
     kpisHtml.push({
-      etiqueta: `Recaudado (${formateadorPorcentaje.format(pctReal)} de la cartera)`,
-      valor: formateadorMonedaMasividad.format(embudoParaKpi.recaudacion || 0),
+      etiqueta: `Recaudado (${formateadorPorcentaje.format(pctReal)} de la cartera actual)`,
+      valor: formateadorMonedaMasividad.format(recaudado),
+    });
+    kpisHtml.push({
+      etiqueta: 'Cumplimiento del objetivo',
+      valor: formateadorPorcentaje.format(pctCumplimientoObjetivo),
     });
   }
   document.getElementById('kpis-resumen').innerHTML = kpisHtml.map(k => `
