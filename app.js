@@ -365,7 +365,7 @@ async function cargarVistaResumen() {
       valor: formateadorMonedaMasividad.format(recaudado),
     });
     kpisHtml.push({
-      etiqueta: 'Cumplimiento del objetivo',
+      etiqueta: 'Ratio',
       valor: formateadorPorcentaje.format(pctCumplimientoObjetivo),
     });
   }
