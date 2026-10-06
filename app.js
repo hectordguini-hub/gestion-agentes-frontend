@@ -354,19 +354,22 @@ async function cargarVistaResumen() {
     const deudaBaseObjetivo = objetivoFijo ? Number(objetivoFijo.deuda_total_congelada) : (embudoParaKpi.deuda_cartera || 0);
     const metaEnPesos = deudaBaseObjetivo * objetivo;
     const recaudado = embudoParaKpi.recaudacion || 0;
-    const pctReal = embudoParaKpi.deuda_cartera ? recaudado / embudoParaKpi.deuda_cartera : 0;
-    const pctCumplimientoObjetivo = metaEnPesos ? recaudado / metaEnPesos : 0;
+    // Ratio = recaudado a la fecha / total de cartera asignada (congelado)
+    // — no contra el objetivo del 2%/1,5%. Se recalcula solo, día a día,
+    // a medida que se cargan pagos (el denominador no se mueve hasta la
+    // próxima carga completa de cartera).
+    const ratio = deudaBaseObjetivo ? recaudado / deudaBaseObjetivo : 0;
     kpisHtml.push({
       etiqueta: `Objetivo (${formateadorPorcentaje.format(objetivo)} de la cartera asignada)`,
       valor: formateadorMonedaMasividad.format(metaEnPesos),
     });
     kpisHtml.push({
-      etiqueta: `Recaudado (${formateadorPorcentaje.format(pctReal)} de la cartera actual)`,
+      etiqueta: 'Recaudado',
       valor: formateadorMonedaMasividad.format(recaudado),
     });
     kpisHtml.push({
-      etiqueta: 'Ratio',
-      valor: formateadorPorcentaje.format(pctCumplimientoObjetivo),
+      etiqueta: `Ratio (sobre total asignado: ${formateadorMonedaMasividad.format(deudaBaseObjetivo)})`,
+      valor: formateadorPorcentaje.format(ratio),
     });
   }
   document.getElementById('kpis-resumen').innerHTML = kpisHtml.map(k => `
