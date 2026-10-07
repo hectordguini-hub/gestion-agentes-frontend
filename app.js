@@ -288,22 +288,43 @@ function calcularDiasHabiles() {
 }
 
 document.getElementById('selector-rango-resumen').addEventListener('change', cargarVistaResumen);
-document.getElementById('selector-unidad-resumen').addEventListener('change', cargarVistaResumen);
+document.getElementById('selector-unidad-resumen').addEventListener('change', () => {
+  actualizarVisibilidadEmpresa();
+  cargarVistaResumen();
+});
+document.getElementById('selector-empresa-resumen').addEventListener('change', cargarVistaResumen);
+
+// El selector de empresa solo aplica a GERENCIAR RECUPERA, que maneja
+// ambas empresas juntas. En cualquier otra unidad se oculta y se ignora.
+function esUnidadMultiempresa() {
+  return (document.getElementById('selector-unidad-resumen').value || '').toUpperCase() === 'GERENCIAR RECUPERA';
+}
+function actualizarVisibilidadEmpresa() {
+  const fila = document.getElementById('fila-empresa-resumen');
+  const sel = document.getElementById('selector-empresa-resumen');
+  if (esUnidadMultiempresa()) fila.classList.remove('oculto');
+  else { fila.classList.add('oculto'); sel.value = ''; }
+}
+function empresaSeleccionada() {
+  return esUnidadMultiempresa() ? (document.getElementById('selector-empresa-resumen').value || null) : null;
+}
 
 async function cargarVistaResumen() {
   const { fechaDesde, fechaHasta } = fechasDelMesSeleccionado();
   const unidadNegocio = document.getElementById('selector-unidad-resumen').value || null;
+  actualizarVisibilidadEmpresa();
+  const empresa = empresaSeleccionada();
 
   const [kpisResp, porAgenteDiaResp, efectividadResp, porCanalResp, porEfectoResp, extendidoResp, masividadResp, carteraDniResp, objetivoFijoResp] = await Promise.all([
-    supabaseClient.rpc('gestiones_kpis', { fecha_desde: fechaDesde, fecha_hasta: fechaHasta, p_unidad_negocio: unidadNegocio }),
-    supabaseClient.rpc('gestiones_por_agente_dia', { fecha_desde: fechaDesde, fecha_hasta: fechaHasta, p_unidad_negocio: unidadNegocio }),
-    supabaseClient.rpc('gestiones_efectividad_por_agente', { fecha_desde: fechaDesde, fecha_hasta: fechaHasta, p_unidad_negocio: unidadNegocio }),
-    supabaseClient.rpc('gestiones_por_canal', { fecha_desde: fechaDesde, fecha_hasta: fechaHasta, p_unidad_negocio: unidadNegocio }),
-    supabaseClient.rpc('gestiones_por_efecto', { fecha_desde: fechaDesde, fecha_hasta: fechaHasta, p_unidad_negocio: unidadNegocio }),
-    supabaseClient.rpc('gestiones_extendido_por_agente', { fecha_desde: fechaDesde, fecha_hasta: fechaHasta, p_unidad_negocio: unidadNegocio }),
-    supabaseClient.rpc('gestiones_masividad', { fecha_desde: fechaDesde, fecha_hasta: fechaHasta, p_unidad_negocio: unidadNegocio }),
+    supabaseClient.rpc('gestiones_kpis', { fecha_desde: fechaDesde, fecha_hasta: fechaHasta, p_unidad_negocio: unidadNegocio, p_empresa: empresa }),
+    supabaseClient.rpc('gestiones_por_agente_dia', { fecha_desde: fechaDesde, fecha_hasta: fechaHasta, p_unidad_negocio: unidadNegocio, p_empresa: empresa }),
+    supabaseClient.rpc('gestiones_efectividad_por_agente', { fecha_desde: fechaDesde, fecha_hasta: fechaHasta, p_unidad_negocio: unidadNegocio, p_empresa: empresa }),
+    supabaseClient.rpc('gestiones_por_canal', { fecha_desde: fechaDesde, fecha_hasta: fechaHasta, p_unidad_negocio: unidadNegocio, p_empresa: empresa }),
+    supabaseClient.rpc('gestiones_por_efecto', { fecha_desde: fechaDesde, fecha_hasta: fechaHasta, p_unidad_negocio: unidadNegocio, p_empresa: empresa }),
+    supabaseClient.rpc('gestiones_extendido_por_agente', { fecha_desde: fechaDesde, fecha_hasta: fechaHasta, p_unidad_negocio: unidadNegocio, p_empresa: empresa }),
+    supabaseClient.rpc('gestiones_masividad', { fecha_desde: fechaDesde, fecha_hasta: fechaHasta, p_unidad_negocio: unidadNegocio, p_empresa: empresa }),
     unidadNegocio
-      ? supabaseClient.rpc('cartera_embudo_efectividad', { p_unidad_negocio: unidadNegocio, fecha_desde: fechaDesde, fecha_hasta: fechaHasta })
+      ? supabaseClient.rpc('cartera_embudo_efectividad', { p_unidad_negocio: unidadNegocio, fecha_desde: fechaDesde, fecha_hasta: fechaHasta, p_empresa: empresaSeleccionada() })
       : Promise.resolve({ data: null }),
     // Objetivo "congelado": la deuda total de la cartera tal como quedó
     // registrada la última vez que se cargó una cartera completa para esta
@@ -351,7 +372,7 @@ async function cargarVistaResumen() {
     // cargó ninguna cartera para esta unidad desde que existe esta foto,
     // se usa la deuda en vivo como respaldo.
     const objetivoFijo = (objetivoFijoResp.data && objetivoFijoResp.data[0]) || null;
-    const deudaBaseObjetivo = objetivoFijo ? Number(objetivoFijo.deuda_total_congelada) : (embudoParaKpi.deuda_cartera || 0);
+    const deudaBaseObjetivo = (objetivoFijo && !empresa) ? Number(objetivoFijo.deuda_total_congelada) : (embudoParaKpi.deuda_cartera || 0);
     const metaEnPesos = deudaBaseObjetivo * objetivo;
     const recaudado = embudoParaKpi.recaudacion || 0;
     // Ratio = recaudado a la fecha / total de cartera asignada (congelado)
@@ -437,7 +458,7 @@ async function cargarVistaResumen() {
     else if (f.tipo_contacto === 'CONTACTO INDIRECTO') porAgente[clave].indirecto += Number(f.cantidad);
     else if (f.tipo_contacto === 'NO CONTACTO') porAgente[clave].sinContacto += Number(f.cantidad);
   });
-  const filasAgente = Object.values(porAgente).sort((a, b) => b.gestiones - a.gestiones);
+  const filasAgente = Object.values(porAgente).sort((a, b) => String(a.empresa || '').localeCompare(String(b.empresa || '')) || b.gestiones - a.gestiones);
   const formateadorMonedaRecupero = new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', maximumFractionDigits: 0 });
   document.querySelector('#tabla-por-agente tbody').innerHTML = filasAgente.map(a => {
     // % Efectividad del agente = contacto directo (ultima gestion por DNI)
@@ -524,8 +545,8 @@ async function cargarEmbudoYContactabilidad(unidadNegocio, fechaDesde, fechaHast
   // El embudo ya se pidio en cargarVistaResumen (para el KPI de Cartera
   // Asignada) — se reutiliza esa respuesta en vez de pedirla de nuevo.
   const [embudoResp, contactabilidadResp] = await Promise.all([
-    embudoRespPrevio || supabaseClient.rpc('cartera_embudo_efectividad', { p_unidad_negocio: unidadNegocio, fecha_desde: fechaDesde, fecha_hasta: fechaHasta }),
-    supabaseClient.rpc('cartera_contactabilidad', { p_unidad_negocio: unidadNegocio, fecha_desde: fechaDesde, fecha_hasta: fechaHasta }),
+    embudoRespPrevio || supabaseClient.rpc('cartera_embudo_efectividad', { p_unidad_negocio: unidadNegocio, fecha_desde: fechaDesde, fecha_hasta: fechaHasta, p_empresa: empresaSeleccionada() }),
+    supabaseClient.rpc('cartera_contactabilidad', { p_unidad_negocio: unidadNegocio, fecha_desde: fechaDesde, fecha_hasta: fechaHasta, p_empresa: empresaSeleccionada() }),
   ]);
 
   const e = (embudoResp.data && embudoResp.data[0]) || {};
