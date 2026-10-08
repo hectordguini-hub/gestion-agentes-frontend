@@ -1179,12 +1179,53 @@ document.getElementById('form-cargar-masivos').addEventListener('submit', async 
 // ============================================================
 document.getElementById('comp-unidad-negocio').addEventListener('change', cargarComparativo);
 document.querySelector('[data-vista="comparativo"]').addEventListener('click', cargarComparativo);
+document.getElementById('comp-mismo-dia-fecha').addEventListener('change', cargarMismoDia);
+
+async function cargarMismoDia() {
+  const unidad = document.getElementById('comp-unidad-negocio').value || null;
+  const inputFecha = document.getElementById('comp-mismo-dia-fecha');
+  if (!inputFecha.value) {
+    // Por defecto: el ultimo dia con pagos cargados (o hoy si no se puede leer)
+    let porDefecto = new Date().toISOString().slice(0, 10);
+    try {
+      const { data } = await supabaseClient.from('recupero').select('f_pago').order('f_pago', { ascending: false }).limit(1);
+      if (data && data[0] && data[0].f_pago) porDefecto = data[0].f_pago;
+    } catch (e) { /* se usa hoy */ }
+    inputFecha.value = porDefecto;
+  }
+  const fecha = inputFecha.value;
+  const { data } = await supabaseClient.rpc('comparativo_mismo_dia', { p_unidad_negocio: unidad, p_fecha: fecha, meses: 6 });
+  const filas = data || [];
+  const moneda = new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', maximumFractionDigits: 0 });
+  const etiqueta = f => new Date(f.fecha + 'T00:00:00').toLocaleDateString('es-AR', { day: '2-digit', month: 'short', year: 'numeric' });
+  const dia = Number(fecha.slice(8, 10));
+  const hayAjuste = filas.some(f => Number(f.fecha.slice(8, 10)) !== dia);
+  document.getElementById('comp-mismo-dia-nota').textContent =
+    'Barras: lo recaudado ese día. Línea: acumulado del mes hasta ese día.' +
+    (hayAjuste ? ' En los meses que no tienen ese día se usa el último día del mes.' : '');
+  destruirSiExiste('grafico-comp-mismo-dia');
+  graficos['grafico-comp-mismo-dia'] = new Chart(document.getElementById('grafico-comp-mismo-dia'), {
+    data: {
+      labels: filas.map(etiqueta),
+      datasets: [
+        { type: 'bar', label: 'Recaudación del día', data: filas.map(f => Number(f.recaudacion_dia)), backgroundColor: COLOR_VERDE },
+        { type: 'line', label: 'Acumulado del mes hasta ese día', data: filas.map(f => Number(f.recaudacion_acumulada)), borderColor: COLOR_BRONCE, backgroundColor: COLOR_BRONCE, tension: 0.3 },
+      ],
+    },
+    options: {
+      responsive: true,
+      plugins: { tooltip: { callbacks: { label: c => `${c.dataset.label}: ${moneda.format(c.parsed.y)}` } } },
+      scales: { y: { ticks: { callback: v => moneda.format(v) } } },
+    },
+  });
+}
 
 async function cargarComparativo() {
   const unidad = document.getElementById('comp-unidad-negocio').value || null;
   const formateadorMoneda = new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', maximumFractionDigits: 0 });
   const formateadorMes = f => new Date(f + 'T00:00:00').toLocaleDateString('es-AR', { month: 'short', year: 'numeric' });
 
+  cargarMismoDia();
   const [{ data: mensual }, { data: diario }] = await Promise.all([
     supabaseClient.rpc('comparativo_mensual', { p_unidad_negocio: unidad, meses: 6 }),
     supabaseClient.rpc('comparativo_diario', { p_unidad_negocio: unidad, fecha_desde: null, fecha_hasta: null }),
