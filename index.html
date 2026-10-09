@@ -58,6 +58,7 @@
       <button class="pestana activa" data-vista="resumen">Resumen</button>
       <button class="pestana" data-vista="cartera-resumen">Cartera</button>
       <button class="pestana" data-vista="comparativo">Comparativo</button>
+      <button class="pestana" data-vista="recupero-diario">Recupero diario</button>
 
       <div class="etiqueta-grupo-menu">Operatividad</div>
       <button class="pestana" data-vista="cargar">Cargar Gestiones</button>
@@ -353,6 +354,47 @@
         <details class="tarjeta-grafico ancho-completo desplegable" open>
           <summary>Diario — mes en curso</summary>
           <canvas id="grafico-comp-diario"></canvas>
+        </details>
+      </section>
+
+      <!-- ---------- VISTA: RECUPERO DIARIO (casos cobrados) ---------- -->
+      <section id="vista-recupero-diario" class="vista oculto">
+        <h2>Recupero diario — casos cobrados</h2>
+        <p class="ayuda">Compara mes contra mes los casos cobrados (DNI distintos con pago) y el monto recaudado, hasta el día que elijas. Por ejemplo, con "Día 8" y "Acumulado" ves lo cobrado del 1 al 8 de cada mes. Solo hay datos de los meses con pagos cargados.</p>
+        <div class="fila-titulo-selector">
+          <span class="etiqueta-actualizado">Unidad de negocio</span>
+          <select id="rd-unidad-negocio">
+            <option value="">Todas</option>
+            <option value="ON CITY JUDICIAL">ON CITY JUDICIAL</option>
+            <option value="CFN JUDICIAL">CFN JUDICIAL</option>
+            <option value="ON CITY TERCERIZADO">ON CITY TERCERIZADO</option>
+            <option value="CFN TERCERIZADO">CFN TERCERIZADO</option>
+            <option value="GERENCIAR RECUPERA">GERENCIAR RECUPERA</option>
+          </select>
+          <span class="etiqueta-actualizado">Comparar día</span>
+          <select id="rd-dia"></select>
+          <span class="etiqueta-actualizado">Meses</span>
+          <select id="rd-meses">
+            <option value="3">Últimos 3 meses</option>
+            <option value="6" selected>Últimos 6 meses</option>
+            <option value="12">Últimos 12 meses</option>
+          </select>
+          <span class="etiqueta-actualizado">Modo</span>
+          <select id="rd-modo">
+            <option value="acumulado" selected>Acumulado (del 1 al día elegido)</option>
+            <option value="dia">Solo el día elegido</option>
+          </select>
+        </div>
+        <details class="tarjeta-grafico ancho-completo desplegable" open>
+          <summary id="rd-titulo">Casos cobrados y monto</summary>
+          <canvas id="grafico-recupero-diario"></canvas>
+        </details>
+        <details class="tabla-contenedor desplegable" open>
+          <summary>Detalle</summary>
+          <table id="tabla-recupero-diario">
+            <thead><tr><th>Mes</th><th>Período</th><th class="numero">Casos cobrados</th><th class="numero">Monto</th></tr></thead>
+            <tbody></tbody>
+          </table>
         </details>
       </section>
 

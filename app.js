@@ -95,7 +95,7 @@ async function aplicarRestriccionUnidad(email) {
 
   const unidadesPermitidas = data.map(f => f.unidad_negocio);
   const todosLosSelectores = [
-    'selector-unidad-resumen', 'cartera-resumen-unidad', 'comp-unidad-negocio',
+    'selector-unidad-resumen', 'cartera-resumen-unidad', 'comp-unidad-negocio', 'rd-unidad-negocio',
     'cartera-unidad-negocio', 'recupero-unidad-negocio', 'baja-unidad-negocio',
     'pv-unidad-negocio', 'conv-unidad-negocio', 'nc-unidad-negocio', 'sg-unidad-negocio', 'masivos-unidad-negocio',
   ];
@@ -1282,5 +1282,67 @@ async function cargarComparativo() {
       ],
     },
     options: { responsive: true },
+  });
+}
+
+
+// ============================================================
+// RECUPERO DIARIO — casos cobrados y monto, mismo dia de cada mes
+// ============================================================
+(function iniciarRecuperoDiario() {
+  const selDia = document.getElementById('rd-dia');
+  for (let d = 1; d <= 31; d++) {
+    const opt = document.createElement('option');
+    opt.value = d; opt.textContent = `Día ${d}`;
+    selDia.appendChild(opt);
+  }
+  selDia.value = String(new Date().getDate());
+  ['rd-unidad-negocio', 'rd-dia', 'rd-meses', 'rd-modo'].forEach(id =>
+    document.getElementById(id).addEventListener('change', cargarRecuperoDiario));
+  document.querySelector('[data-vista="recupero-diario"]').addEventListener('click', cargarRecuperoDiario);
+})();
+
+async function cargarRecuperoDiario() {
+  const unidad = document.getElementById('rd-unidad-negocio').value || null;
+  const dia = Number(document.getElementById('rd-dia').value);
+  const meses = Number(document.getElementById('rd-meses').value);
+  const acumulado = document.getElementById('rd-modo').value === 'acumulado';
+  const { data } = await supabaseClient.rpc('recupero_diario_comparado', {
+    p_unidad_negocio: unidad, p_dia: dia, meses, p_acumulado: acumulado,
+  });
+  const filas = data || [];
+  const moneda = new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', maximumFractionDigits: 0 });
+  const fmtMes = f => new Date(f + 'T00:00:00').toLocaleDateString('es-AR', { month: 'short', year: 'numeric' });
+  const fmtDia = f => new Date(f + 'T00:00:00').toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit' });
+  const periodo = f => f.desde === f.hasta ? fmtDia(f.hasta) : `${fmtDia(f.desde)} al ${fmtDia(f.hasta)}`;
+
+  document.getElementById('rd-titulo').textContent =
+    `Casos cobrados y monto — ${acumulado ? `del 1 al ${dia}` : `solo el día ${dia}`} de cada mes${unidad ? ` · ${unidad}` : ''}`;
+
+  document.querySelector('#tabla-recupero-diario tbody').innerHTML = filas.map(f => `
+    <tr><td>${fmtMes(f.mes)}</td><td>${periodo(f)}</td>
+    <td class="numero">${formateadorNumero.format(f.casos)}</td>
+    <td class="numero">${moneda.format(f.monto)}</td></tr>`).join('');
+
+  destruirSiExiste('grafico-recupero-diario');
+  graficos['grafico-recupero-diario'] = new Chart(document.getElementById('grafico-recupero-diario'), {
+    data: {
+      labels: filas.map(f => fmtMes(f.mes)),
+      datasets: [
+        { type: 'bar', label: 'Casos cobrados', data: filas.map(f => Number(f.casos)), backgroundColor: 'rgba(63,107,79,0.35)', yAxisID: 'y1', order: 2 },
+        { type: 'line', label: 'Monto recaudado', data: filas.map(f => Number(f.monto)), borderColor: COLOR_BRONCE, backgroundColor: COLOR_BRONCE, tension: 0.3, yAxisID: 'y', order: 1 },
+      ],
+    },
+    options: {
+      responsive: true,
+      plugins: { tooltip: { callbacks: {
+        title: items => { const f = filas[items[0].dataIndex]; return `${fmtMes(f.mes)} (${periodo(f)})`; },
+        label: c => c.dataset.yAxisID === 'y' ? `Monto: ${moneda.format(c.parsed.y)}` : `Casos cobrados: ${formateadorNumero.format(c.parsed.y)}`,
+      } } },
+      scales: {
+        y: { position: 'left', title: { display: true, text: 'Monto ($)' }, ticks: { callback: v => moneda.format(v) } },
+        y1: { position: 'right', title: { display: true, text: 'Casos cobrados' }, grid: { drawOnChartArea: false } },
+      },
+    },
   });
 }
