@@ -16,6 +16,15 @@ function destruirSiExiste(id) {
 // ============================================================
 // LOGIN / SESIÓN
 // ============================================================
+// Si la sesion vencio (o se cerro en otra pestaña), getSession() devuelve
+// null y antes se mostraba un error tecnico. Ahora se explica que hacer.
+function tokenSesion(session) {
+  if (!session || !session.access_token) {
+    throw new Error('Tu sesión venció. Hacé clic en "Salir", volvé a ingresar con tu usuario y repetí la carga.');
+  }
+  return session.access_token;
+}
+
 supabaseClient.auth.getSession().then(({ data: { session } }) => {
   if (session) mostrarApp(session);
 });
@@ -626,7 +635,7 @@ document.getElementById('form-cargar-gestiones').addEventListener('submit', asyn
   try {
     const respuesta = await fetch(`${CONFIG.BACKEND_URL}/upload-gestiones`, {
       method: 'POST',
-      headers: { 'Authorization': `Bearer ${session.access_token}` },
+      headers: { 'Authorization': `Bearer ${tokenSesion(session)}` },
       body: formData,
     });
     const resultado = await respuesta.json();
@@ -716,7 +725,7 @@ document.getElementById('form-baja-cartera').addEventListener('submit', async (e
   try {
     const respuesta = await fetch(`${CONFIG.BACKEND_URL}/baja-cartera`, {
       method: 'POST',
-      headers: { 'Authorization': `Bearer ${session.access_token}` },
+      headers: { 'Authorization': `Bearer ${tokenSesion(session)}` },
       body: formData,
     });
     const resultado = await respuesta.json();
@@ -754,7 +763,7 @@ document.getElementById('form-cargar-recupero').addEventListener('submit', async
   try {
     const respuesta = await fetch(`${CONFIG.BACKEND_URL}/upload-recupero`, {
       method: 'POST',
-      headers: { 'Authorization': `Bearer ${session.access_token}` },
+      headers: { 'Authorization': `Bearer ${tokenSesion(session)}` },
       body: formData,
     });
     const resultado = await respuesta.json();
@@ -793,7 +802,7 @@ document.getElementById('form-cargar-cartera').addEventListener('submit', async 
   try {
     const respuesta = await fetch(`${CONFIG.BACKEND_URL}/upload-cartera`, {
       method: 'POST',
-      headers: { 'Authorization': `Bearer ${session.access_token}` },
+      headers: { 'Authorization': `Bearer ${tokenSesion(session)}` },
       body: formData,
     });
     const resultado = await respuesta.json();
@@ -832,7 +841,7 @@ document.getElementById('form-alta-agente').addEventListener('submit', async (e)
   try {
     const respuesta = await fetch(`${CONFIG.BACKEND_URL}/agentes-box/alta`, {
       method: 'POST',
-      headers: { 'Authorization': `Bearer ${session.access_token}` },
+      headers: { 'Authorization': `Bearer ${tokenSesion(session)}` },
       body: formData,
     });
     const resultado = await respuesta.json();
@@ -881,7 +890,7 @@ async function cargarTablaAgentesConfig() {
       try {
         const respuesta = await fetch(`${CONFIG.BACKEND_URL}/agentes-box/${accion}`, {
           method: 'POST',
-          headers: { 'Authorization': `Bearer ${session.access_token}` },
+          headers: { 'Authorization': `Bearer ${tokenSesion(session)}` },
           body: formData,
         });
         const resultado = await respuesta.json();
@@ -917,7 +926,7 @@ document.getElementById('form-alta-usuario').addEventListener('submit', async (e
   try {
     const respuesta = await fetch(`${CONFIG.BACKEND_URL}/usuarios/alta`, {
       method: 'POST',
-      headers: { 'Authorization': `Bearer ${session.access_token}` },
+      headers: { 'Authorization': `Bearer ${tokenSesion(session)}` },
       body: formData,
     });
     const resultado = await respuesta.json();
@@ -1156,7 +1165,7 @@ document.getElementById('form-cargar-masivos').addEventListener('submit', async 
   try {
     const respuesta = await fetch(`${CONFIG.BACKEND_URL}/upload-masivos`, {
       method: 'POST',
-      headers: { 'Authorization': `Bearer ${session.access_token}` },
+      headers: { 'Authorization': `Bearer ${tokenSesion(session)}` },
       body: formData,
     });
     const resultado = await respuesta.json();
