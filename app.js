@@ -904,6 +904,57 @@ async function cargarTablaAgentesConfig() {
   });
 }
 
+document.getElementById('btn-reasignar-vacios').addEventListener('click', async () => {
+  const unidad = document.getElementById('config-unidad-negocio').value;
+  const estadoEl = document.getElementById('reasignar-vacios-estado');
+  if (!unidad) {
+    estadoEl.textContent = 'Elegí primero una unidad en el filtro.';
+    estadoEl.className = 'mensaje-estado error';
+    return;
+  }
+  const boton = document.getElementById('btn-reasignar-vacios');
+  boton.disabled = true;
+  estadoEl.textContent = 'Calculando…';
+  estadoEl.className = 'mensaje-estado';
+  const llamar = async (simular) => {
+    const { data: { session } } = await supabaseClient.auth.getSession();
+    const formData = new FormData();
+    formData.append('unidad_negocio', unidad);
+    formData.append('simular', simular ? 'true' : 'false');
+    const respuesta = await fetch(`${CONFIG.BACKEND_URL}/reasignar-cartera-boxes-vacios`, {
+      method: 'POST',
+      headers: { 'Authorization': `Bearer ${tokenSesion(session)}` },
+      body: formData,
+    });
+    const resultado = await respuesta.json();
+    if (!respuesta.ok) throw new Error(resultado.detail || 'Error desconocido');
+    return resultado;
+  };
+  try {
+    const sim = await llamar(true);
+    if (!sim.fichas) {
+      estadoEl.textContent = 'No hay boxes sin agentes con cartera para reasignar.';
+      estadoEl.className = 'mensaje-estado ok';
+      return;
+    }
+    const detalle = Object.entries(sim.destino).map(([b, n]) => `  ${b}: +${n}`).join('\n');
+    const ok = confirm(`${unidad}\n\nBoxes sin agentes: ${sim.boxes_vacios.join(', ')}\nSe reasignan ${sim.fichas} fichas (${sim.dnis} DNI):\n${detalle}\n\n¿Aplicar?`);
+    if (!ok) {
+      estadoEl.textContent = 'Cancelado, no se modificó nada.';
+      return;
+    }
+    estadoEl.textContent = 'Aplicando…';
+    const res = await llamar(false);
+    estadoEl.textContent = `Listo: ${res.fichas} fichas (${res.dnis} DNI) reasignadas.`;
+    estadoEl.className = 'mensaje-estado ok';
+  } catch (err) {
+    estadoEl.textContent = `Error: ${err.message}`;
+    estadoEl.className = 'mensaje-estado error';
+  } finally {
+    boton.disabled = false;
+  }
+});
+
 document.querySelector('[data-vista="configuracion"]').addEventListener('click', cargarTablaAgentesConfig);
 
 // ============================================================

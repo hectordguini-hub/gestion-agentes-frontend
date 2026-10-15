@@ -579,6 +579,11 @@
               <option value="GERENCIAR RECUPERA">GERENCIAR RECUPERA</option>
             </select>
           </div>
+          <div class="fila-titulo-selector">
+            <button type="button" id="btn-reasignar-vacios" class="btn-secundario">Reasignar cartera de boxes sin agentes</button>
+            <span id="reasignar-vacios-estado" class="mensaje-estado"></span>
+          </div>
+          <p class="ayuda">Elegí una unidad en el filtro. La cartera de los boxes que quedaron sin agentes activos se reparte entre los boxes que sí tienen agentes, según sus horas. Un DNI queda siempre en un solo box. Antes de aplicar se muestra un resumen para confirmar.</p>
           <table id="tabla-agentes-config">
             <thead><tr><th>Unidad</th><th>Box</th><th>Agente</th><th class="numero">Horas</th><th>Estado</th><th>Acción</th></tr></thead>
             <tbody></tbody>
