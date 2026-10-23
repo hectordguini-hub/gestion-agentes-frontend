@@ -522,6 +522,25 @@ async function cargarVistaResumen() {
       </tr>`;
   }
 
+  // ---- Recupero que no se atribuye a ningun agente (para que el total cierre con la unidad) ----
+  try {
+    const { data: sinAtribuir } = await supabaseClient.rpc('recupero_sin_atribuir', { fecha_desde: fechaDesde, fecha_hasta: fechaHasta, p_unidad_negocio: unidadNegocio, p_empresa: empresa });
+    const etiquetas = { 'SIN GESTION PREVIA': 'sin gestión previa', 'GESTION YA COBRADA': 'gestión ya cobrada antes', 'EFECTO MASIVO': 'efecto masivo' };
+    const filas = sinAtribuir || [];
+    const totalSin = filas.reduce((acc, f) => acc + Number(f.monto || 0), 0);
+    const detalle = filas.map(f => `${etiquetas[f.motivo] || f.motivo}: ${formateadorMonedaRecupero.format(f.monto)} (${formateadorNumero.format(f.pagos)} pagos)`).join(' · ');
+    let nota = document.getElementById('nota-recupero-sin-atribuir');
+    if (!nota) {
+      nota = document.createElement('p');
+      nota.id = 'nota-recupero-sin-atribuir';
+      nota.className = 'ayuda';
+      document.getElementById('tabla-por-agente').insertAdjacentElement('afterend', nota);
+    }
+    nota.textContent = filas.length
+      ? `Recupero no atribuido a ningún agente: ${formateadorMonedaRecupero.format(totalSin)} — ${detalle}. Cada pago se atribuye a la última gestión efectiva hasta 30 días antes de la fecha de pago, y solo una vez.`
+      : '';
+  } catch (e) { /* informativo, no debe romper la vista */ }
+
   await cargarEmbudoYContactabilidad(unidadNegocio, fechaDesde, fechaHasta, carteraDniResp, pctEfectividad);
 }
 
