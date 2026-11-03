@@ -95,7 +95,7 @@ async function aplicarRestriccionUnidad(email) {
 
   const unidadesPermitidas = data.map(f => f.unidad_negocio);
   const todosLosSelectores = [
-    'selector-unidad-resumen', 'cartera-resumen-unidad', 'comp-unidad-negocio', 'rd-unidad-negocio',
+    'selector-unidad-resumen', 'cartera-resumen-unidad', 'comp-unidad-negocio', 'rd-unidad-negocio', 'cd-unidad-negocio',
     'cartera-unidad-negocio', 'recupero-unidad-negocio', 'baja-unidad-negocio',
     'pv-unidad-negocio', 'conv-unidad-negocio', 'nc-unidad-negocio', 'sg-unidad-negocio', 'masivos-unidad-negocio',
   ];
