@@ -1322,9 +1322,9 @@ async function cargarComparativo() {
     data: {
       labels: filasMes.map(f => formateadorMes(f.mes)),
       datasets: [
-        { type: 'bar', label: 'Total Gestiones', data: filasMes.map(f => f.total_gestiones), backgroundColor: COLOR_TINTA, yAxisID: 'y' },
-        { type: 'bar', label: 'Contacto Directo', data: filasMes.map(f => f.contacto_directo), backgroundColor: COLOR_BRONCE, yAxisID: 'y' },
-        { type: 'line', label: 'Recaudación', data: filasMes.map(f => f.recaudacion), borderColor: COLOR_VERDE, backgroundColor: COLOR_VERDE, yAxisID: 'y1', tension: 0.3 },
+        { type: 'bar', label: 'Total Gestiones', data: filasMes.map(f => f.total_gestiones), backgroundColor: 'rgba(37,64,74,0.28)', borderColor: 'rgba(37,64,74,0.5)', borderWidth: 1, order: 2, yAxisID: 'y' },
+        { type: 'bar', label: 'Contacto Directo', data: filasMes.map(f => f.contacto_directo), backgroundColor: 'rgba(202,1,48,0.30)', borderColor: 'rgba(202,1,48,0.55)', borderWidth: 1, order: 2, yAxisID: 'y' },
+        { type: 'line', label: 'Recaudación', data: filasMes.map(f => f.recaudacion), borderColor: COLOR_VERDE, backgroundColor: COLOR_VERDE, borderWidth: 3, pointRadius: 4, order: 1, yAxisID: 'y1', tension: 0.3 },
       ],
     },
     options: {
@@ -1417,9 +1417,9 @@ async function cargarComparativoCierreDiario() {
   // Grafico (de mas viejo a mas nuevo, sin meses vacios)
   const serie = filas.filter(f => Number(f.gestiones) || Number(f.dni_trabajados) || Number(f.recaudacion)).slice().reverse();
   const verRec = modo !== 'efectividad', verEf = modo !== 'recupero';
-  const datasets = [{ type: 'bar', label: 'Gestiones', data: serie.map(f => Number(f.gestiones)), backgroundColor: COLOR_TINTA, yAxisID: 'y' }];
-  if (verRec) datasets.push({ type: 'line', label: 'Recaudación', data: serie.map(f => Number(f.recaudacion)), borderColor: COLOR_VERDE, backgroundColor: COLOR_VERDE, yAxisID: 'y1', tension: 0.3 });
-  if (verEf) datasets.push({ type: 'line', label: '% Efectividad', data: serie.map(f => Number(f.pct_efectividad) * 100), borderColor: COLOR_BRONCE, backgroundColor: COLOR_BRONCE, yAxisID: verRec ? 'y2' : 'y1', tension: 0.3 });
+  const datasets = [{ type: 'bar', label: 'Gestiones', data: serie.map(f => Number(f.gestiones)), backgroundColor: 'rgba(37,64,74,0.28)', borderColor: 'rgba(37,64,74,0.5)', borderWidth: 1, order: 2, yAxisID: 'y' }];
+  if (verRec) datasets.push({ type: 'line', label: 'Recaudación', data: serie.map(f => Number(f.recaudacion)), borderColor: COLOR_VERDE, backgroundColor: COLOR_VERDE, borderWidth: 3, pointRadius: 4, order: 1, yAxisID: 'y1', tension: 0.3 });
+  if (verEf) datasets.push({ type: 'line', label: '% Efectividad', data: serie.map(f => Number(f.pct_efectividad) * 100), borderColor: COLOR_BRONCE, backgroundColor: COLOR_BRONCE, borderWidth: 3, pointRadius: 4, order: 0, yAxisID: verRec ? 'y2' : 'y1', tension: 0.3 });
   const escalas = { y: { position: 'left', title: { display: true, text: 'Gestiones' }, beginAtZero: true } };
   if (verRec) escalas.y1 = { position: 'right', title: { display: true, text: 'Recaudación ($)' }, grid: { drawOnChartArea: false }, ticks: { callback: v => moneda.format(v) } };
   if (verEf) escalas[verRec ? 'y2' : 'y1'] = { position: 'right', display: true, title: { display: true, text: '% Efectividad' }, grid: { drawOnChartArea: false }, ticks: { callback: v => `${v}%` }, beginAtZero: true };
