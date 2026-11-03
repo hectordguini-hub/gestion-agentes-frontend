@@ -1306,7 +1306,7 @@ async function cargarComparativo() {
     supabaseClient.rpc('comparativo_diario', { p_unidad_negocio: unidad, fecha_desde: null, fecha_hasta: null }),
   ]);
 
-  const filasMes = mensual || [];
+  const filasMes = (mensual || []).filter(f => Number(f.total_gestiones) || Number(f.recaudacion) || Number(f.dni_trabajados));   // sin meses vacios
   document.querySelector('#tabla-comp-mensual tbody').innerHTML = filasMes.map(f => `
     <tr>
       <td>${formateadorMes(f.mes)}</td>
@@ -1413,6 +1413,29 @@ async function cargarComparativoCierreDiario() {
   document.getElementById('cd-comp-titulo').textContent = `Mismo día, meses anteriores — hasta el ${fmtDia(fecha)}${unidad ? ` · ${unidad}` : ''}`;
   document.getElementById('cd-comp-encabezado').innerHTML =
     '<th>Mes</th><th>Período</th>' + orden.map(c => `<th class="numero">${columnas[c].t}</th>`).join('');
+
+  // Grafico (de mas viejo a mas nuevo, sin meses vacios)
+  const serie = filas.filter(f => Number(f.gestiones) || Number(f.dni_trabajados) || Number(f.recaudacion)).slice().reverse();
+  const verRec = modo !== 'efectividad', verEf = modo !== 'recupero';
+  const datasets = [{ type: 'bar', label: 'Gestiones', data: serie.map(f => Number(f.gestiones)), backgroundColor: COLOR_TINTA, yAxisID: 'y' }];
+  if (verRec) datasets.push({ type: 'line', label: 'Recaudación', data: serie.map(f => Number(f.recaudacion)), borderColor: COLOR_VERDE, backgroundColor: COLOR_VERDE, yAxisID: 'y1', tension: 0.3 });
+  if (verEf) datasets.push({ type: 'line', label: '% Efectividad', data: serie.map(f => Number(f.pct_efectividad) * 100), borderColor: COLOR_BRONCE, backgroundColor: COLOR_BRONCE, yAxisID: verRec ? 'y2' : 'y1', tension: 0.3 });
+  const escalas = { y: { position: 'left', title: { display: true, text: 'Gestiones' }, beginAtZero: true } };
+  if (verRec) escalas.y1 = { position: 'right', title: { display: true, text: 'Recaudación ($)' }, grid: { drawOnChartArea: false }, ticks: { callback: v => moneda.format(v) } };
+  if (verEf) escalas[verRec ? 'y2' : 'y1'] = { position: 'right', display: true, title: { display: true, text: '% Efectividad' }, grid: { drawOnChartArea: false }, ticks: { callback: v => `${v}%` }, beginAtZero: true };
+  destruirSiExiste('grafico-cd-comparativo');
+  graficos['grafico-cd-comparativo'] = new Chart(document.getElementById('grafico-cd-comparativo'), {
+    data: { labels: serie.map(f => `${fmtMes(f.mes)} (1 al ${fmtDia(f.hasta).slice(0, 2)})`), datasets },
+    options: {
+      responsive: true,
+      plugins: { tooltip: { callbacks: { label: c => {
+        const v = c.parsed.y;
+        return c.dataset.label === 'Recaudación' ? `${c.dataset.label}: ${moneda.format(v)}`
+             : c.dataset.label === '% Efectividad' ? `${c.dataset.label}: ${v.toFixed(1).replace('.', ',')}%`
+             : `${c.dataset.label}: ${formateadorNumero.format(v)}`; } } } },
+      scales: escalas,
+    },
+  });
 
   const actual = filas[0];
   const variacion = (c, f) => {
