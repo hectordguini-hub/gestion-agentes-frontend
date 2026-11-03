@@ -58,6 +58,7 @@
       <button class="pestana activa" data-vista="resumen">Resumen</button>
       <button class="pestana" data-vista="cartera-resumen">Cartera</button>
       <button class="pestana" data-vista="comparativo">Comparativo</button>
+      <button class="pestana" data-vista="cierre-diario">Cierre diario</button>
       <button class="pestana" data-vista="recupero-diario">Recupero diario</button>
 
       <div class="etiqueta-grupo-menu">Operatividad</div>
@@ -363,6 +364,42 @@
           <summary>Diario — mes en curso</summary>
           <canvas id="grafico-comp-diario"></canvas>
         </details>
+      </section>
+
+      <!-- ---------- VISTA: CIERRE DIARIO (por agente) ---------- -->
+      <section id="vista-cierre-diario" class="vista oculto">
+        <h2>Cierre diario por agente</h2>
+        <p class="ayuda">Cómo cerró un día puntual cada agente: gestiones, DNI trabajados, contacto, efectividad y pagos atribuidos a su gestión (los pagos del día que corresponden a una gestión efectiva del agente en los 30 días previos). Por defecto muestra el último día con gestiones cargadas.</p>
+        <div class="fila-titulo-selector">
+          <span class="etiqueta-actualizado">Unidad de negocio</span>
+          <select id="cd-unidad-negocio">
+            <option value="">Todas</option>
+            <option value="ON CITY JUDICIAL">ON CITY JUDICIAL</option>
+            <option value="CFN JUDICIAL">CFN JUDICIAL</option>
+            <option value="ON CITY TERCERIZADO">ON CITY TERCERIZADO</option>
+            <option value="CFN TERCERIZADO">CFN TERCERIZADO</option>
+            <option value="GERENCIAR RECUPERA">GERENCIAR RECUPERA</option>
+          </select>
+          <span class="etiqueta-actualizado">Día</span>
+          <button type="button" id="cd-anterior" class="btn-secundario">&larr;</button>
+          <input type="date" id="cd-fecha">
+          <button type="button" id="cd-siguiente" class="btn-secundario">&rarr;</button>
+          <button type="button" id="cd-ultimo" class="btn-secundario">Último día cargado</button>
+          <button type="button" id="cd-descargar" class="btn-secundario">Descargar</button>
+        </div>
+        <div class="tarjetas-kpi" id="cd-kpis"></div>
+        <details class="tabla-contenedor desplegable" open>
+          <summary id="cd-titulo">Detalle por agente</summary>
+          <table id="tabla-cierre-diario">
+            <thead><tr>
+              <th>Agente</th><th>Empresa</th><th class="numero">Gestiones</th><th class="numero">DNI trabajados</th>
+              <th class="numero">Contacto directo</th><th class="numero">Contacto indirecto</th><th class="numero">Sin contacto</th>
+              <th class="numero">% Efectividad</th><th class="numero">Pagos</th><th class="numero">Recupero atribuido</th>
+            </tr></thead>
+            <tbody></tbody>
+          </table>
+        </details>
+        <p id="cd-nota" class="ayuda"></p>
       </section>
 
       <!-- ---------- VISTA: RECUPERO DIARIO (casos cobrados) ---------- -->
