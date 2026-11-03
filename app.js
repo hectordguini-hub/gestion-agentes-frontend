@@ -1368,6 +1368,8 @@ async function cargarComparativo() {
   document.getElementById('cd-ultimo').addEventListener('click', async () => { await fijarUltimoDiaCargado(); cargarCierreDiario(); });
   fecha.addEventListener('change', cargarCierreDiario);
   document.getElementById('cd-unidad-negocio').addEventListener('change', cargarCierreDiario);
+  document.getElementById('cd-comp-modo').addEventListener('change', cargarComparativoCierreDiario);
+  document.getElementById('cd-comp-meses').addEventListener('change', cargarComparativoCierreDiario);
   document.getElementById('cd-descargar').addEventListener('click', () => {
     const cols = ['usuario', 'empresa', 'gestiones', 'dni_trabajados', 'contacto_directo', 'contacto_indirecto', 'sin_contacto', 'pct_efectividad', 'pagos', 'recupero_atribuido'];
     descargarComoCsv(`cierre_diario_${fecha.value}.csv`, cols, window._cierreDiarioFilas || []);
@@ -1377,6 +1379,58 @@ async function cargarComparativo() {
     cargarCierreDiario();
   });
 })();
+
+async function cargarComparativoCierreDiario() {
+  const fecha = document.getElementById('cd-fecha').value;
+  if (!fecha) return;
+  const unidad = document.getElementById('cd-unidad-negocio').value || null;
+  const modo = document.getElementById('cd-comp-modo').value;
+  const meses = Number(document.getElementById('cd-comp-meses').value);
+  const { data } = await supabaseClient.rpc('comparativo_mismo_dia_ampliado', { p_unidad_negocio: unidad, p_fecha: fecha, meses });
+  const filas = (data || []).slice().sort((a, b) => b.mes.localeCompare(a.mes));   // el mes actual primero
+  const moneda = new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', maximumFractionDigits: 0 });
+  const num = v => formateadorNumero.format(Number(v || 0));
+  const pct = v => `${(Number(v) * 100).toFixed(1).replace('.', ',')}%`;
+  const fmtDia = f => new Date(f + 'T00:00:00').toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit' });
+  const fmtMes = f => new Date(f + 'T00:00:00').toLocaleDateString('es-AR', { month: 'short', year: 'numeric' });
+
+  const columnas = {
+    gestiones:     { t: 'Gestiones',          v: f => num(f.gestiones),             k: 'gestiones' },
+    dni:           { t: 'DNI trabajados',     v: f => num(f.dni_trabajados),        k: 'dni_trabajados' },
+    directo:       { t: 'Contacto directo',   v: f => num(f.contacto_directo),      k: 'contacto_directo' },
+    indirecto:     { t: 'Contacto indirecto', v: f => num(f.contacto_indirecto),    k: 'contacto_indirecto' },
+    efectividad:   { t: '% Efectividad',      v: f => pct(f.pct_efectividad),       k: 'pct_efectividad', puntos: true },
+    recaudacion:   { t: 'Recaudación',        v: f => moneda.format(f.recaudacion), k: 'recaudacion' },
+    pagos:         { t: 'Pagos atribuidos',   v: f => num(f.pagos_atribuidos),      k: 'pagos_atribuidos' },
+    atribuido:     { t: 'Recupero atribuido', v: f => moneda.format(f.recupero_atribuido), k: 'recupero_atribuido' },
+  };
+  const orden = {
+    recupero:    ['gestiones', 'recaudacion', 'pagos', 'atribuido'],
+    efectividad: ['gestiones', 'dni', 'directo', 'indirecto', 'efectividad'],
+    todo:        ['gestiones', 'dni', 'directo', 'indirecto', 'efectividad', 'recaudacion', 'pagos', 'atribuido'],
+  }[modo];
+
+  document.getElementById('cd-comp-titulo').textContent = `Mismo día, meses anteriores — hasta el ${fmtDia(fecha)}${unidad ? ` · ${unidad}` : ''}`;
+  document.getElementById('cd-comp-encabezado').innerHTML =
+    '<th>Mes</th><th>Período</th>' + orden.map(c => `<th class="numero">${columnas[c].t}</th>`).join('');
+
+  const actual = filas[0];
+  const variacion = (c, f) => {
+    if (f === actual || !actual) return '';
+    const col = columnas[c];
+    const a = Number(actual[col.k] || 0), b = Number(f[col.k] || 0);
+    if (col.puntos) {
+      const d = (a - b) * 100;
+      return `<br><small>actual ${d >= 0 ? '+' : ''}${d.toFixed(1).replace('.', ',')} pts</small>`;
+    }
+    if (!b) return '';
+    const d = (a / b - 1) * 100;
+    return `<br><small>actual ${d >= 0 ? '+' : ''}${d.toFixed(0)}%</small>`;
+  };
+  document.querySelector('#tabla-cd-comparativo tbody').innerHTML = filas.map(f => `
+    <tr${f === actual ? ' style="font-weight:600"' : ''}><td>${fmtMes(f.mes)}</td><td>${fmtDia(f.desde)} al ${fmtDia(f.hasta)}</td>
+    ${orden.map(c => `<td class="numero">${columnas[c].v(f)}${variacion(c, f)}</td>`).join('')}</tr>`).join('');
+}
 
 async function fijarUltimoDiaCargado() {
   const { data } = await supabaseClient.from('gestiones').select('fecha').order('fecha', { ascending: false }).limit(1);
@@ -1420,6 +1474,7 @@ async function cargarCierreDiario() {
         <td class="numero">${formateadorNumero.format(tot.p)}</td><td class="numero">${moneda.format(tot.m)}</td></tr>`
     : '<tr><td colspan="10">No hay gestiones cargadas para ese día.</td></tr>';
   document.getElementById('cd-nota').textContent = 'Los pagos aparecen cuando se carga el Recupero de ese día; si todavía no se cargó, la columna figura en cero.';
+  cargarComparativoCierreDiario();
 }
 
 // ============================================================
