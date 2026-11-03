@@ -400,6 +400,29 @@
           </table>
         </details>
         <p id="cd-nota" class="ayuda"></p>
+
+        <details class="tabla-contenedor desplegable" open>
+          <summary id="cd-comp-titulo">Mismo día, meses anteriores</summary>
+          <div class="fila-titulo-selector">
+            <span class="etiqueta-actualizado">Ver</span>
+            <select id="cd-comp-modo">
+              <option value="recupero" selected>Gestiones + Recupero</option>
+              <option value="efectividad">Gestiones + Efectividad</option>
+              <option value="todo">Todo</option>
+            </select>
+            <span class="etiqueta-actualizado">Meses</span>
+            <select id="cd-comp-meses">
+              <option value="2">Este y el anterior</option>
+              <option value="3" selected>Este y los 2 anteriores</option>
+              <option value="6">Últimos 6 meses</option>
+            </select>
+          </div>
+          <table id="tabla-cd-comparativo">
+            <thead><tr id="cd-comp-encabezado"></tr></thead>
+            <tbody></tbody>
+          </table>
+          <p class="ayuda">Acumulado del día 1 hasta el mismo día del mes. Compará con cuidado los días hábiles: un mes puede tener más días de trabajo que otro. Las cifras de meses anteriores se calculan con la cartera actual.</p>
+        </details>
       </section>
 
       <!-- ---------- VISTA: RECUPERO DIARIO (casos cobrados) ---------- -->
