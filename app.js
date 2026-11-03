@@ -1353,6 +1353,76 @@ async function cargarComparativo() {
 
 
 // ============================================================
+// CIERRE DIARIO — cómo cerró un día cada agente
+// ============================================================
+(function iniciarCierreDiario() {
+  const fecha = document.getElementById('cd-fecha');
+  const mover = dias => {
+    const d = new Date((fecha.value || new Date().toISOString().slice(0, 10)) + 'T00:00:00');
+    d.setDate(d.getDate() + dias);
+    fecha.value = d.toISOString().slice(0, 10);
+    cargarCierreDiario();
+  };
+  document.getElementById('cd-anterior').addEventListener('click', () => mover(-1));
+  document.getElementById('cd-siguiente').addEventListener('click', () => mover(1));
+  document.getElementById('cd-ultimo').addEventListener('click', async () => { await fijarUltimoDiaCargado(); cargarCierreDiario(); });
+  fecha.addEventListener('change', cargarCierreDiario);
+  document.getElementById('cd-unidad-negocio').addEventListener('change', cargarCierreDiario);
+  document.getElementById('cd-descargar').addEventListener('click', () => {
+    const cols = ['usuario', 'empresa', 'gestiones', 'dni_trabajados', 'contacto_directo', 'contacto_indirecto', 'sin_contacto', 'pct_efectividad', 'pagos', 'recupero_atribuido'];
+    descargarComoCsv(`cierre_diario_${fecha.value}.csv`, cols, window._cierreDiarioFilas || []);
+  });
+  document.querySelector('[data-vista="cierre-diario"]').addEventListener('click', async () => {
+    if (!fecha.value) await fijarUltimoDiaCargado();
+    cargarCierreDiario();
+  });
+})();
+
+async function fijarUltimoDiaCargado() {
+  const { data } = await supabaseClient.from('gestiones').select('fecha').order('fecha', { ascending: false }).limit(1);
+  document.getElementById('cd-fecha').value = (data && data[0] && data[0].fecha) || new Date().toISOString().slice(0, 10);
+}
+
+async function cargarCierreDiario() {
+  const fecha = document.getElementById('cd-fecha').value;
+  if (!fecha) return;
+  const unidad = document.getElementById('cd-unidad-negocio').value || null;
+  const { data } = await supabaseClient.rpc('cierre_diario', { p_fecha: fecha, p_unidad_negocio: unidad, p_empresa: null });
+  const filas = data || [];
+  window._cierreDiarioFilas = filas;
+  const moneda = new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', maximumFractionDigits: 0 });
+  const pct = v => `${(Number(v) * 100).toFixed(1).replace('.', ',')}%`;
+  const suma = k => filas.reduce((a, f) => a + Number(f[k] || 0), 0);
+  const tot = { g: suma('gestiones'), d: suma('dni_trabajados'), cd: suma('contacto_directo'), ci: suma('contacto_indirecto'),
+                sc: suma('sin_contacto'), p: suma('pagos'), m: suma('recupero_atribuido') };
+
+  const diaTxt = new Date(fecha + 'T00:00:00').toLocaleDateString('es-AR', { weekday: 'long', day: '2-digit', month: '2-digit', year: 'numeric' });
+  document.getElementById('cd-titulo').textContent = `Detalle por agente — ${diaTxt}${unidad ? ` · ${unidad}` : ''}`;
+  document.getElementById('cd-kpis').innerHTML = [
+    ['Agentes activos', formateadorNumero.format(filas.length)],
+    ['Gestiones', formateadorNumero.format(tot.g)],
+    ['DNI trabajados', formateadorNumero.format(tot.d)],
+    ['Contacto directo', `${formateadorNumero.format(tot.cd)} (${pct(tot.d ? tot.cd / tot.d : 0)})`],
+    ['Pagos atribuidos', formateadorNumero.format(tot.p)],
+    ['Recupero atribuido', moneda.format(tot.m)],
+  ].map(([t, v]) => `<div class="tarjeta-kpi"><span class="valor">${v}</span><span class="etiqueta">${t}</span></div>`).join('');
+
+  const fila = f => `<tr><td>${f.usuario}</td><td>${f.empresa || ''}</td>
+    <td class="numero">${formateadorNumero.format(f.gestiones)}</td><td class="numero">${formateadorNumero.format(f.dni_trabajados)}</td>
+    <td class="numero">${formateadorNumero.format(f.contacto_directo)}</td><td class="numero">${formateadorNumero.format(f.contacto_indirecto)}</td>
+    <td class="numero">${formateadorNumero.format(f.sin_contacto)}</td><td class="numero">${pct(f.pct_efectividad)}</td>
+    <td class="numero">${formateadorNumero.format(f.pagos)}</td><td class="numero">${moneda.format(f.recupero_atribuido)}</td></tr>`;
+  document.querySelector('#tabla-cierre-diario tbody').innerHTML = filas.length
+    ? filas.map(fila).join('') + `<tr style="font-weight:600"><td>TOTAL</td><td></td>
+        <td class="numero">${formateadorNumero.format(tot.g)}</td><td class="numero">${formateadorNumero.format(tot.d)}</td>
+        <td class="numero">${formateadorNumero.format(tot.cd)}</td><td class="numero">${formateadorNumero.format(tot.ci)}</td>
+        <td class="numero">${formateadorNumero.format(tot.sc)}</td><td class="numero">${pct(tot.d ? tot.cd / tot.d : 0)}</td>
+        <td class="numero">${formateadorNumero.format(tot.p)}</td><td class="numero">${moneda.format(tot.m)}</td></tr>`
+    : '<tr><td colspan="10">No hay gestiones cargadas para ese día.</td></tr>';
+  document.getElementById('cd-nota').textContent = 'Los pagos aparecen cuando se carga el Recupero de ese día; si todavía no se cargó, la columna figura en cero.';
+}
+
+// ============================================================
 // RECUPERO DIARIO — casos cobrados y monto, mismo dia de cada mes
 // ============================================================
 (function iniciarRecuperoDiario() {
