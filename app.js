@@ -1,5 +1,62 @@
 const supabaseClient = supabase.createClient(CONFIG.SUPABASE_URL, CONFIG.SUPABASE_ANON_KEY);
 
+// ------------------------------------------------------------
+// Carga rapida: las consultas de lectura (RPC) se guardan 2 minutos en
+// memoria, las que se piden dos veces a la vez se juntan en una sola y se
+// ejecutan de a 3 como maximo, para no saturar la base. El cache se limpia
+// al terminar una carga de archivos o al cerrar sesion.
+// ------------------------------------------------------------
+const RPC_LECTURA = new Set([
+  'cartera_contactabilidad', 'cartera_embudo_efectividad', 'cartera_objetivo_congelado', 'cartera_resumen_por_box',
+  'cartera_resumen_por_rango', 'cartera_totales', 'cierre_diario', 'comparativo_diario', 'comparativo_mensual',
+  'comparativo_mismo_dia', 'comparativo_mismo_dia_ampliado', 'gestiones_efectividad_por_agente',
+  'gestiones_extendido_por_agente', 'gestiones_kpis', 'gestiones_masividad', 'gestiones_por_agente_dia',
+  'gestiones_por_canal', 'gestiones_por_efecto', 'recaudacion_judicial_por_empresa', 'recupero_diario_comparado',
+  'unidades_negocio_disponibles',
+]);
+const RPC_CACHE_MS = 120000;
+const RPC_MAX_SIMULTANEAS = 3;
+const _rpcCache = new Map();
+const _rpcCola = [];
+let _rpcActivas = 0;
+function limpiarCacheRpc() { _rpcCache.clear(); }
+function _rpcConLimite(tarea) {
+  return new Promise((resolve, reject) => {
+    const correr = () => {
+      _rpcActivas++;
+      tarea().then(resolve, reject).finally(() => {
+        _rpcActivas--;
+        const siguiente = _rpcCola.shift();
+        if (siguiente) siguiente();
+      });
+    };
+    if (_rpcActivas < RPC_MAX_SIMULTANEAS) correr(); else _rpcCola.push(correr);
+  });
+}
+const _rpcOriginal = supabaseClient.rpc.bind(supabaseClient);
+supabaseClient.rpc = function (nombre, params, opciones) {
+  if (!RPC_LECTURA.has(nombre)) return _rpcOriginal(nombre, params, opciones);
+  const clave = nombre + '|' + JSON.stringify(params || {});
+  const guardado = _rpcCache.get(clave);
+  if (guardado && Date.now() - guardado.t < RPC_CACHE_MS) return guardado.p;
+  const p = _rpcConLimite(() => _rpcOriginal(nombre, params, opciones)).then(
+    r => { if (r && r.error) _rpcCache.delete(clave); return r; },
+    e => { _rpcCache.delete(clave); throw e; }
+  );
+  _rpcCache.set(clave, { t: Date.now(), p });
+  return p;
+};
+// Cualquier cambio hecho contra el backend (cargas, altas, reasignaciones) invalida el cache.
+const _fetchOriginal = window.fetch.bind(window);
+window.fetch = async function (...args) {
+  const respuesta = await _fetchOriginal(...args);
+  try {
+    const metodo = ((args[1] && args[1].method) || 'GET').toUpperCase();
+    if (metodo !== 'GET' && String(args[0]).startsWith(CONFIG.BACKEND_URL)) limpiarCacheRpc();
+  } catch (e) { /* no afecta */ }
+  return respuesta;
+};
+
 const formateadorNumero = new Intl.NumberFormat('es-AR');
 const formateadorPorcentaje = new Intl.NumberFormat('es-AR', { style: 'percent', minimumFractionDigits: 1, maximumFractionDigits: 1 });
 
@@ -77,6 +134,10 @@ async function cargarSelectorUnidadNegocio() {
 // ============================================================
 // RESTRICCION DE UNIDAD PARA REFERENTES
 // ============================================================
+const SELECTORES_CARGA_AL_ABRIR = new Set([
+  'selector-unidad-resumen', 'comp-unidad-negocio', 'rd-unidad-negocio', 'cd-unidad-negocio',
+  'pv-unidad-negocio', 'conv-unidad-negocio', 'nc-unidad-negocio', 'sg-unidad-negocio',
+]);
 async function aplicarRestriccionUnidad(email) {
   const { data } = await supabaseClient
     .from('referentes_unidad')
@@ -114,7 +175,9 @@ async function aplicarRestriccionUnidad(email) {
     });
     if (select.options.length > 0) {
       select.value = select.options[0].value;
-      select.dispatchEvent(new Event('change'));
+      // Las solapas pesadas se cargan recien cuando se abren (al hacer clic en
+      // la pestaña), no todas juntas al iniciar sesion.
+      if (!SELECTORES_CARGA_AL_ABRIR.has(id)) select.dispatchEvent(new Event('change'));
     }
     if (select.options.length === 1) select.disabled = true;
   });
@@ -668,6 +731,7 @@ async function esperarFinalizacionYRefrescar(estadoEl, horaInicioIso, mensajeExi
       if (filaFinal.estado === 'ok') {
         estadoEl.textContent = mensajeExito || `Listo: ${filaFinal.mensaje}`;
         estadoEl.className = 'mensaje-estado ok';
+        limpiarCacheRpc();
         cargarVistaResumen();
       } else {
         estadoEl.textContent = `Error: ${filaFinal.mensaje}`;
