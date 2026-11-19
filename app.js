@@ -1378,6 +1378,43 @@ async function cargarDetalleDia() {
     </tr>`;
 }
 
+// Recaudado por empresa: por mes (sin dia elegido) o de un dia puntual.
+document.getElementById('comp-empresa-dia').addEventListener('change', cargarRecaudacionEmpresa);
+document.getElementById('comp-empresa-dia-limpiar').addEventListener('click', () => {
+  document.getElementById('comp-empresa-dia').value = '';
+  cargarRecaudacionEmpresa();
+});
+
+async function cargarRecaudacionEmpresa() {
+  const fecha = document.getElementById('comp-empresa-dia').value;
+  const moneda = new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  const nombre = c => c === 'CFN S.R.L.' ? 'CFN' : (String(c).startsWith('ELECTRONICA MEGATONE') ? 'Megatone (On City)' : c);
+  const etiqueta = f => fecha
+    ? new Date(f.fecha + 'T00:00:00').toLocaleDateString('es-AR', { day: '2-digit', month: 'short', year: 'numeric' })
+    : new Date(f.mes + 'T00:00:00').toLocaleDateString('es-AR', { month: 'short', year: 'numeric' });
+  document.getElementById('th-recaudacion-empresa-periodo').textContent = fecha ? 'Día' : 'Mes';
+
+  const { data } = fecha
+    ? await supabaseClient.rpc('recaudacion_judicial_por_empresa_dia', { p_fecha: fecha })
+    : await supabaseClient.rpc('recaudacion_judicial_por_empresa', { meses: 6 });
+  const filas = data || [];
+  const cuerpo = document.querySelector('#tabla-recaudacion-empresa tbody');
+  if (fecha && !filas.length) {
+    cuerpo.innerHTML = '<tr><td colspan="7">No hay pagos cargados ese día.</td></tr>';
+    return;
+  }
+  cuerpo.innerHTML = filas.map(f => `
+    <tr>
+      <td>${etiqueta(f)}</td>
+      <td>${nombre(f.compania)}</td>
+      <td class="numero">${formateadorNumero.format(f.filas)}</td>
+      <td class="numero">${moneda.format(f.monto_judicial)}</td>
+      <td class="numero">${moneda.format(f.monto_gerenciar_recupera)}</td>
+      <td class="numero">${moneda.format(f.monto_sin_unidad)}</td>
+      <td class="numero"><strong>${moneda.format(f.monto_total)}</strong></td>
+    </tr>`).join('');
+}
+
 async function cargarComparativo() {
   const unidad = document.getElementById('comp-unidad-negocio').value || null;
   const formateadorMoneda = new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -1385,21 +1422,7 @@ async function cargarComparativo() {
   const formateadorMes = f => new Date(f + 'T00:00:00').toLocaleDateString('es-AR', { month: 'short', year: 'numeric' });
 
   cargarMismoDia();
-  supabaseClient.rpc('recaudacion_judicial_por_empresa', { meses: 6 }).then(({ data }) => {
-    const nombre = c => c === 'CFN S.R.L.' ? 'CFN' : (String(c).startsWith('ELECTRONICA MEGATONE') ? 'Megatone (On City)' : c);
-    const filas = data || [];
-    const m = formateadorMoneda;
-    document.querySelector('#tabla-recaudacion-empresa tbody').innerHTML = filas.map(f => `
-      <tr>
-        <td>${formateadorMes(f.mes)}</td>
-        <td>${nombre(f.compania)}</td>
-        <td class="numero">${formateadorNumero.format(f.filas)}</td>
-        <td class="numero">${m.format(f.monto_judicial)}</td>
-        <td class="numero">${m.format(f.monto_gerenciar_recupera)}</td>
-        <td class="numero">${m.format(f.monto_sin_unidad)}</td>
-        <td class="numero"><strong>${m.format(f.monto_total)}</strong></td>
-      </tr>`).join('');
-  });
+  cargarRecaudacionEmpresa();
   const [{ data: mensual }, { data: diario }] = await Promise.all([
     supabaseClient.rpc('comparativo_mensual', { p_unidad_negocio: unidad, meses: 6 }),
     supabaseClient.rpc('comparativo_diario', { p_unidad_negocio: unidad, fecha_desde: null, fecha_hasta: null }),
