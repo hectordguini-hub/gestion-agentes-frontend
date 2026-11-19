@@ -336,6 +336,16 @@
         </details>
         <details class="tabla-contenedor desplegable" open>
           <summary>Detalle mensual</summary>
+          <div class="fila-titulo-selector">
+            <span class="etiqueta-actualizado">Día</span>
+            <input type="date" id="comp-detalle-dia">
+            <button type="button" id="comp-detalle-dia-limpiar" class="btn-secundario">Ver meses</button>
+          </div>
+          <p class="ayuda oculto" id="comp-detalle-dia-nota">Detalle de un día puntual. Los DNI trabajados y el % de efectividad se calculan por mes, por eso acá no se muestran.</p>
+          <table id="tabla-comp-dia" class="oculto">
+            <thead><tr><th>Día</th><th class="numero">Total Gestiones</th><th class="numero">Contacto Directo</th><th class="numero">Recaudación</th></tr></thead>
+            <tbody></tbody>
+          </table>
           <table id="tabla-comp-mensual">
             <thead><tr><th>Mes</th><th class="numero">Total Gestiones</th><th class="numero">DNI Trabajados</th><th class="numero">Contacto Directo</th><th class="numero">% Efectividad</th><th class="numero">Recaudación</th></tr></thead>
             <tbody></tbody>
