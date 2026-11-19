@@ -1320,7 +1320,8 @@ async function cargarMismoDia() {
   const fecha = inputFecha.value;
   const { data } = await supabaseClient.rpc('comparativo_mismo_dia', { p_unidad_negocio: unidad, p_fecha: fecha, meses: 6 });
   const filas = data || [];
-  const moneda = new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', maximumFractionDigits: 0 });
+  const moneda = new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  const monedaEje = new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', maximumFractionDigits: 0 });
   const etiqueta = f => new Date(f.fecha + 'T00:00:00').toLocaleDateString('es-AR', { day: '2-digit', month: 'short', year: 'numeric' });
   const dia = Number(fecha.slice(8, 10));
   const hayAjuste = filas.some(f => Number(f.fecha.slice(8, 10)) !== dia);
@@ -1339,14 +1340,48 @@ async function cargarMismoDia() {
     options: {
       responsive: true,
       plugins: { tooltip: { callbacks: { label: c => `${c.dataset.label}: ${moneda.format(c.parsed.y)}` } } },
-      scales: { y: { ticks: { callback: v => moneda.format(v) } } },
+      scales: { y: { ticks: { callback: v => monedaEje.format(v) } } },
     },
   });
 }
 
+// Detalle mensual: si se elige un dia, la tabla muestra ese dia puntual
+// (comparativo_diario con desde = hasta); sin dia, muestra los meses.
+document.getElementById('comp-detalle-dia').addEventListener('change', cargarDetalleDia);
+document.getElementById('comp-detalle-dia-limpiar').addEventListener('click', () => {
+  document.getElementById('comp-detalle-dia').value = '';
+  cargarDetalleDia();
+});
+
+async function cargarDetalleDia() {
+  const fecha = document.getElementById('comp-detalle-dia').value;
+  const unidad = document.getElementById('comp-unidad-negocio').value || null;
+  const tablaDia = document.getElementById('tabla-comp-dia');
+  const tablaMes = document.getElementById('tabla-comp-mensual');
+  const nota = document.getElementById('comp-detalle-dia-nota');
+  const modoDia = Boolean(fecha);
+  tablaDia.classList.toggle('oculto', !modoDia);
+  nota.classList.toggle('oculto', !modoDia);
+  tablaMes.classList.toggle('oculto', modoDia);
+  if (!modoDia) return;
+
+  const { data } = await supabaseClient.rpc('comparativo_diario', { p_unidad_negocio: unidad, fecha_desde: fecha, fecha_hasta: fecha });
+  const fila = (data || []).find(f => f.fecha === fecha);
+  const moneda = new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  const etiqueta = new Date(fecha + 'T00:00:00').toLocaleDateString('es-AR', { day: '2-digit', month: 'short', year: 'numeric' });
+  document.querySelector('#tabla-comp-dia tbody').innerHTML = `
+    <tr>
+      <td>${etiqueta}</td>
+      <td class="numero">${formateadorNumero.format(fila ? fila.total_gestiones : 0)}</td>
+      <td class="numero">${formateadorNumero.format(fila ? fila.contacto_directo : 0)}</td>
+      <td class="numero">${moneda.format(fila ? fila.recaudacion : 0)}</td>
+    </tr>`;
+}
+
 async function cargarComparativo() {
   const unidad = document.getElementById('comp-unidad-negocio').value || null;
-  const formateadorMoneda = new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', maximumFractionDigits: 0 });
+  const formateadorMoneda = new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  cargarDetalleDia();
   const formateadorMes = f => new Date(f + 'T00:00:00').toLocaleDateString('es-AR', { month: 'short', year: 'numeric' });
 
   cargarMismoDia();
