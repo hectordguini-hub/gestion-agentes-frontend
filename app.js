@@ -11,7 +11,7 @@ const RPC_LECTURA = new Set([
   'cartera_resumen_por_rango', 'cartera_totales', 'cierre_diario', 'comparativo_diario', 'comparativo_mensual',
   'comparativo_mismo_dia', 'comparativo_mismo_dia_ampliado', 'gestiones_efectividad_por_agente',
   'gestiones_extendido_por_agente', 'gestiones_kpis', 'gestiones_masividad', 'gestiones_por_agente_dia',
-  'gestiones_por_canal', 'gestiones_por_efecto', 'recaudacion_judicial_por_empresa', 'recupero_diario_comparado',
+  'gestiones_por_canal', 'gestiones_por_efecto', 'recaudacion_judicial_por_empresa', 'recupero_diario_comparado', 'recupero_diario_comparado_multi',
   'unidades_negocio_disponibles',
 ]);
 const RPC_CACHE_MS = 120000;
@@ -135,7 +135,7 @@ async function cargarSelectorUnidadNegocio() {
 // RESTRICCION DE UNIDAD PARA REFERENTES
 // ============================================================
 const SELECTORES_CARGA_AL_ABRIR = new Set([
-  'selector-unidad-resumen', 'comp-unidad-negocio', 'rd-unidad-negocio', 'cd-unidad-negocio',
+  'selector-unidad-resumen', 'comp-unidad-negocio', 'cd-unidad-negocio',
   'pv-unidad-negocio', 'conv-unidad-negocio', 'nc-unidad-negocio', 'sg-unidad-negocio',
 ]);
 async function aplicarRestriccionUnidad(email) {
@@ -156,10 +156,15 @@ async function aplicarRestriccionUnidad(email) {
 
   const unidadesPermitidas = data.map(f => f.unidad_negocio);
   const todosLosSelectores = [
-    'selector-unidad-resumen', 'cartera-resumen-unidad', 'comp-unidad-negocio', 'rd-unidad-negocio', 'cd-unidad-negocio',
+    'selector-unidad-resumen', 'cartera-resumen-unidad', 'comp-unidad-negocio', 'cd-unidad-negocio',
     'cartera-unidad-negocio', 'recupero-unidad-negocio', 'baja-unidad-negocio',
     'pv-unidad-negocio', 'conv-unidad-negocio', 'nc-unidad-negocio', 'sg-unidad-negocio', 'masivos-unidad-negocio',
   ];
+
+  // Recupero diario: checkboxes de unidades -> el referente solo conserva las suyas.
+  document.querySelectorAll('.rd-chk-unidad').forEach(chk => {
+    if (!unidadesPermitidas.includes(chk.value)) chk.closest('label').remove();
+  });
 
   todosLosSelectores.forEach(id => {
     const select = document.getElementById(id);
@@ -1633,27 +1638,37 @@ async function cargarCierreDiario() {
     selDia.appendChild(opt);
   }
   selDia.value = String(new Date().getDate());
-  ['rd-unidad-negocio', 'rd-dia', 'rd-meses', 'rd-modo'].forEach(id =>
+  ['rd-unidades', 'rd-dia', 'rd-meses', 'rd-modo'].forEach(id =>
     document.getElementById(id).addEventListener('change', cargarRecuperoDiario));
   document.querySelector('[data-vista="recupero-diario"]').addEventListener('click', cargarRecuperoDiario);
 })();
 
 async function cargarRecuperoDiario() {
-  const unidad = document.getElementById('rd-unidad-negocio').value || null;
+  const marcadas = Array.from(document.querySelectorAll('.rd-chk-unidad:checked')).map(c => c.value);
+  const total = document.querySelectorAll('.rd-chk-unidad').length;
+  // Un referente tiene solo sus unidades como checkbox: nunca se manda null (= todas).
+  const unidades = marcadas;
+  const etiquetaUnidades = marcadas.length === total ? '' : ` · ${marcadas.join(' + ')}`;
   const dia = Number(document.getElementById('rd-dia').value);
   const meses = Number(document.getElementById('rd-meses').value);
   const acumulado = document.getElementById('rd-modo').value === 'acumulado';
-  const { data } = await supabaseClient.rpc('recupero_diario_comparado', {
-    p_unidad_negocio: unidad, p_dia: dia, meses, p_acumulado: acumulado,
+  if (unidades.length === 0) {
+    document.querySelector('#tabla-recupero-diario tbody').innerHTML = '<tr><td colspan="4">Elegí al menos una unidad de negocio.</td></tr>';
+    destruirSiExiste('grafico-recupero-diario');
+    return;
+  }
+  const { data } = await supabaseClient.rpc('recupero_diario_comparado_multi', {
+    p_unidades: unidades, p_dia: dia, meses, p_acumulado: acumulado,
   });
   const filas = data || [];
-  const moneda = new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', maximumFractionDigits: 0 });
+  const moneda = new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  const monedaEje = new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', maximumFractionDigits: 0 });
   const fmtMes = f => new Date(f + 'T00:00:00').toLocaleDateString('es-AR', { month: 'short', year: 'numeric' });
   const fmtDia = f => new Date(f + 'T00:00:00').toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit' });
   const periodo = f => f.desde === f.hasta ? fmtDia(f.hasta) : `${fmtDia(f.desde)} al ${fmtDia(f.hasta)}`;
 
   document.getElementById('rd-titulo').textContent =
-    `Casos cobrados y monto — ${acumulado ? `del 1 al ${dia}` : `solo el día ${dia}`} de cada mes${unidad ? ` · ${unidad}` : ''}`;
+    `Casos cobrados y monto — ${acumulado ? `del 1 al ${dia}` : `solo el día ${dia}`} de cada mes${etiquetaUnidades}`;
 
   document.querySelector('#tabla-recupero-diario tbody').innerHTML = filas.map(f => `
     <tr><td>${fmtMes(f.mes)}</td><td>${periodo(f)}</td>
@@ -1676,7 +1691,7 @@ async function cargarRecuperoDiario() {
         label: c => c.dataset.yAxisID === 'y' ? `Monto: ${moneda.format(c.parsed.y)}` : `Casos cobrados: ${formateadorNumero.format(c.parsed.y)}`,
       } } },
       scales: {
-        y: { position: 'left', title: { display: true, text: 'Monto ($)' }, ticks: { callback: v => moneda.format(v) } },
+        y: { position: 'left', title: { display: true, text: 'Monto ($)' }, ticks: { callback: v => monedaEje.format(v) } },
         y1: { position: 'right', title: { display: true, text: 'Casos cobrados' }, grid: { drawOnChartArea: false } },
       },
     },

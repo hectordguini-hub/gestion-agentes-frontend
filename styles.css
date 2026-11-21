@@ -325,3 +325,6 @@ td.numero, th.numero { font-family: 'IBM Plex Mono', monospace; text-align: righ
   .pestanas { order: 3; width: 100%; justify-content: space-between; }
 }
 .etiqueta-alias { font-size: 0.75rem; font-style: italic; color: var(--texto-tenue); }
+
+.chk-unidades { display: flex; flex-wrap: wrap; gap: 0.4rem 1rem; align-items: center; }
+.chk-unidades label { display: inline-flex; align-items: center; gap: 0.3rem; cursor: pointer; }
