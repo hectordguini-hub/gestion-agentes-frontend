@@ -447,14 +447,7 @@
         <p class="ayuda">Compara mes contra mes los casos cobrados (DNI distintos con pago) y el monto recaudado, hasta el día que elijas. Por ejemplo, con "Día 8" y "Acumulado" ves lo cobrado del 1 al 8 de cada mes. Solo hay datos de los meses con pagos cargados.</p>
         <div class="fila-titulo-selector">
           <span class="etiqueta-actualizado">Unidad de negocio</span>
-          <select id="rd-unidad-negocio">
-            <option value="">Todas</option>
-            <option value="ON CITY JUDICIAL">ON CITY JUDICIAL</option>
-            <option value="CFN JUDICIAL">CFN JUDICIAL</option>
-            <option value="ON CITY TERCERIZADO">ON CITY TERCERIZADO</option>
-            <option value="CFN TERCERIZADO">CFN TERCERIZADO</option>
-            <option value="GERENCIAR RECUPERA">GERENCIAR RECUPERA</option>
-          </select>
+          <div id="rd-unidades" class="chk-unidades"><label><input type="checkbox" class="rd-chk-unidad" value="ON CITY JUDICIAL" checked> ON CITY JUDICIAL</label><label><input type="checkbox" class="rd-chk-unidad" value="CFN JUDICIAL" checked> CFN JUDICIAL</label><label><input type="checkbox" class="rd-chk-unidad" value="ON CITY TERCERIZADO" checked> ON CITY TERCERIZADO</label><label><input type="checkbox" class="rd-chk-unidad" value="CFN TERCERIZADO" checked> CFN TERCERIZADO</label><label><input type="checkbox" class="rd-chk-unidad" value="GERENCIAR RECUPERA" checked> GERENCIAR RECUPERA</label></div>
           <span class="etiqueta-actualizado">Comparar día</span>
           <select id="rd-dia"></select>
           <span class="etiqueta-actualizado">Meses</span>
