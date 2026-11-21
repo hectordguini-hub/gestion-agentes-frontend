@@ -20,6 +20,13 @@ const _rpcCache = new Map();
 const _rpcCola = [];
 let _rpcActivas = 0;
 function limpiarCacheRpc() { _rpcCache.clear(); }
+// Si la pestaña estuvo en segundo plano (por ejemplo se cargaron archivos desde otra
+// ventana), al volver se descartan las lecturas guardadas para no mostrar datos viejos.
+let _ultimaVezVisible = Date.now();
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'hidden') { _ultimaVezVisible = Date.now(); return; }
+  if (Date.now() - _ultimaVezVisible > 10000) limpiarCacheRpc();
+});
 function _rpcConLimite(tarea) {
   return new Promise((resolve, reject) => {
     const correr = () => {
@@ -206,7 +213,7 @@ async function cargarVistaCarteraResumen() {
   ]);
 
   const totales = (totalesResp.data && totalesResp.data[0]) || {};
-  const formateadorMoneda = new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', maximumFractionDigits: 0 });
+  const formateadorMoneda = new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
   document.getElementById('cartera-resumen-totales').innerHTML = [
     { etiqueta: 'Créditos/Fichas totales', valor: formateadorNumero.format(totales.creditos || 0) },
@@ -430,7 +437,7 @@ async function cargarVistaResumen() {
   // el mismo DNI.
   const pctEfectividad = kpis.dni_trabajados ? (Number(kpis.contacto_directo || 0) / Number(kpis.dni_trabajados)) : 0;
   const masividad = (masividadResp.data && masividadResp.data[0]) || {};
-  const formateadorMonedaMasividad = new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', maximumFractionDigits: 0 });
+  const formateadorMonedaMasividad = new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', minimumFractionDigits: 2, maximumFractionDigits: 2 });
   const diasHabiles = calcularDiasHabiles();
   const kpisHtml = [
     { etiqueta: 'Total gestiones', valor: formateadorNumero.format(kpis.total_gestiones || 0) },
@@ -536,7 +543,7 @@ async function cargarVistaResumen() {
     else if (f.tipo_contacto === 'NO CONTACTO') porAgente[clave].sinContacto += Number(f.cantidad);
   });
   const filasAgente = Object.values(porAgente).sort((a, b) => String(a.empresa || '').localeCompare(String(b.empresa || '')) || b.gestiones - a.gestiones);
-  const formateadorMonedaRecupero = new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', maximumFractionDigits: 0 });
+  const formateadorMonedaRecupero = new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', minimumFractionDigits: 2, maximumFractionDigits: 2 });
   document.querySelector('#tabla-por-agente tbody').innerHTML = filasAgente.map(a => {
     // % Efectividad del agente = contacto directo (ultima gestion por DNI)
     // sobre el total de DNI que trabajo ese agente (incluye los DNI cuya
@@ -627,7 +634,7 @@ async function cargarEmbudoYContactabilidad(unidadNegocio, fechaDesde, fechaHast
   ]);
 
   const e = (embudoResp.data && embudoResp.data[0]) || {};
-  const formateadorMoneda = new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', maximumFractionDigits: 0 });
+  const formateadorMoneda = new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
   // % Real de "Contacto a Titular" = el mismo % Efectividad del KPI de
   // arriba (contacto directo sobre DNI trabajados) — no sobre el total
@@ -1124,7 +1131,7 @@ async function cargarPromesasVigentes() {
   if (!unidad) return;
   const data = await llamarRpcPaginado('promesas_vigentes_lista', { p_unidad_negocio: unidad, fecha_desde: null, fecha_hasta: null });
   ultimasFilasPV = data || [];
-  const formateadorMoneda = new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', maximumFractionDigits: 0 });
+  const formateadorMoneda = new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
   document.getElementById('pv-kpis').innerHTML = `
     <div class="tarjeta-kpi"><span class="valor">${formateadorNumero.format(ultimasFilasPV.length)}</span><span class="etiqueta">Promesas vigentes</span></div>`;
@@ -1210,7 +1217,7 @@ async function cargarNoContactados() {
   if (!unidad) return;
   const data = await llamarRpcPaginado('cartera_no_contactados_lista', { p_unidad_negocio: unidad, fecha_desde: null, fecha_hasta: null });
   ultimasFilasNC = data || [];
-  const formateadorMoneda = new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', maximumFractionDigits: 0 });
+  const formateadorMoneda = new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
   document.getElementById('nc-kpis').innerHTML = `
     <div class="tarjeta-kpi"><span class="valor">${formateadorNumero.format(ultimasFilasNC.length)}</span><span class="etiqueta">Casos sin contacto logrado</span></div>`;
@@ -1245,7 +1252,7 @@ async function cargarSinGestion() {
   if (!unidad) return;
   const data = await llamarRpcPaginado('cartera_sin_gestion_lista', { p_unidad_negocio: unidad, fecha_desde: null, fecha_hasta: null });
   ultimasFilasSG = data || [];
-  const formateadorMoneda = new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', maximumFractionDigits: 0 });
+  const formateadorMoneda = new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', minimumFractionDigits: 2, maximumFractionDigits: 2 });
 
   document.getElementById('sg-kpis').innerHTML = `
     <div class="tarjeta-kpi"><span class="valor">${formateadorNumero.format(ultimasFilasSG.length)}</span><span class="etiqueta">DNI nunca tocados este período</span></div>`;
@@ -1515,7 +1522,8 @@ async function cargarComparativoCierreDiario() {
   const meses = Number(document.getElementById('cd-comp-meses').value);
   const { data } = await supabaseClient.rpc('comparativo_mismo_dia_ampliado', { p_unidad_negocio: unidad, p_fecha: fecha, meses });
   const filas = (data || []).slice().sort((a, b) => b.mes.localeCompare(a.mes));   // el mes actual primero
-  const moneda = new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', maximumFractionDigits: 0 });
+  const moneda = new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  const monedaEje = new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', maximumFractionDigits: 0 });
   const num = v => formateadorNumero.format(Number(v || 0));
   const pct = v => `${(Number(v) * 100).toFixed(1).replace('.', ',')}%`;
   const fmtDia = f => new Date(f + 'T00:00:00').toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit' });
@@ -1548,7 +1556,7 @@ async function cargarComparativoCierreDiario() {
   if (verRec) datasets.push({ type: 'line', label: 'Recaudación', data: serie.map(f => Number(f.recaudacion)), borderColor: COLOR_VERDE, backgroundColor: COLOR_VERDE, borderWidth: 3, pointRadius: 4, order: 1, yAxisID: 'y1', tension: 0.3 });
   if (verEf) datasets.push({ type: 'line', label: '% Efectividad', data: serie.map(f => Number(f.pct_efectividad) * 100), borderColor: COLOR_BRONCE, backgroundColor: COLOR_BRONCE, borderWidth: 3, pointRadius: 4, order: 0, yAxisID: verRec ? 'y2' : 'y1', tension: 0.3 });
   const escalas = { y: { position: 'left', title: { display: true, text: 'Gestiones' }, beginAtZero: true } };
-  if (verRec) escalas.y1 = { position: 'right', title: { display: true, text: 'Recaudación ($)' }, grid: { drawOnChartArea: false }, ticks: { callback: v => moneda.format(v) } };
+  if (verRec) escalas.y1 = { position: 'right', title: { display: true, text: 'Recaudación ($)' }, grid: { drawOnChartArea: false }, ticks: { callback: v => monedaEje.format(v) } };
   if (verEf) escalas[verRec ? 'y2' : 'y1'] = { position: 'right', display: true, title: { display: true, text: '% Efectividad' }, grid: { drawOnChartArea: false }, ticks: { callback: v => `${v}%` }, beginAtZero: true };
   destruirSiExiste('grafico-cd-comparativo');
   graficos['grafico-cd-comparativo'] = new Chart(document.getElementById('grafico-cd-comparativo'), {
@@ -1594,7 +1602,7 @@ async function cargarCierreDiario() {
   const { data } = await supabaseClient.rpc('cierre_diario', { p_fecha: fecha, p_unidad_negocio: unidad, p_empresa: null });
   const filas = data || [];
   window._cierreDiarioFilas = filas;
-  const moneda = new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', maximumFractionDigits: 0 });
+  const moneda = new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', minimumFractionDigits: 2, maximumFractionDigits: 2 });
   const pct = v => `${(Number(v) * 100).toFixed(1).replace('.', ',')}%`;
   const suma = k => filas.reduce((a, f) => a + Number(f[k] || 0), 0);
   const tot = { g: suma('gestiones'), d: suma('dni_trabajados'), cd: suma('contacto_directo'), ci: suma('contacto_indirecto'),
