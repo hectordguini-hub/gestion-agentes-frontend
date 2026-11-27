@@ -1133,7 +1133,7 @@ async function cargarPromesasVigentes() {
   if (!unidad) return;
   const vigencia = Math.max(0, Math.min(60, parseInt(document.getElementById('pv-vigencia').value, 10) || 7));
   const data = await llamarRpcPaginado('promesas_estado_lista', {
-    p_unidad_negocio: unidad === 'TODAS' ? null : unidad, p_vigencia_dias: vigencia, fecha_desde: null, fecha_hasta: null,
+    p_unidad_negocio: unidad === 'TODAS' ? null : unidad, p_vigencia_dias: vigencia, p_fecha_desde: null, p_fecha_hasta: null,
   });
   ultimasFilasPV = data || [];
   const vigentes = ultimasFilasPV.filter(f => f.estado === 'VIGENTE').length;
