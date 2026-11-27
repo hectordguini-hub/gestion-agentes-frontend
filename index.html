@@ -475,26 +475,34 @@
         </details>
       </section>
 
-      <!-- ---------- VISTA: PROMESAS VIGENTES ---------- -->
+      <!-- ---------- VISTA: PROMESAS VIGENTES Y ROTAS ---------- -->
       <section id="vista-promesas-vigentes" class="vista oculto">
-        <h2>Promesas Vigentes</h2>
-        <p class="ayuda">Promesas de pago registradas por los agentes que todavía no vencieron y que aún no muestran un pago en Recupero. Elegí una unidad para verlas.</p>
+        <h2>Promesas Vigentes y Rotas</h2>
+        <p class="ayuda">Promesas de pago del mes registradas por los agentes que todavía no muestran un pago en Recupero. Una promesa está <strong>vigente</strong> mientras no pasen los días de vigencia desde la fecha de la gestión (por defecto 7) y <strong>rota</strong> cuando se pasaron sin pago. Se cuenta la última promesa de cada DNI.</p>
         <div class="fila-titulo-selector">
           <span class="etiqueta-actualizado">Unidad de negocio</span>
-          <select id="pv-unidad-negocio"><option value="" disabled selected>Elegí una unidad</option></select>
-          <button type="button" id="btn-descargar-pv" class="btn-secundario">Descargar casos</button>
+          <select id="pv-unidad-negocio"><option value="" disabled selected>Elegí una unidad</option><option value="TODAS">Todas las unidades</option></select>
+          <span class="etiqueta-actualizado">Vigencia (días)</span>
+          <input type="number" id="pv-vigencia" value="7" min="0" max="60" style="width:5rem">
+          <span class="etiqueta-actualizado">Mostrar</span>
+          <select id="pv-filtro-estado">
+            <option value="">Vigentes y rotas</option>
+            <option value="ROTA">Solo rotas</option>
+            <option value="VIGENTE">Solo vigentes</option>
+          </select>
+          <button type="button" id="btn-descargar-pv" class="btn-secundario">Descargar todas (vigentes y rotas)</button>
         </div>
         <div class="tarjetas-kpi" id="pv-kpis"></div>
         <div class="grilla-graficos">
           <details class="tarjeta-grafico desplegable" open>
-            <summary>Promesas vigentes por agente</summary>
-            <canvas id="grafico-pv"></canvas>
+            <summary>Promesas vigentes y rotas por agente</summary>
+            <div id="pv-grafico-caja" style="position:relative;height:360px"><canvas id="grafico-pv"></canvas></div>
           </details>
         </div>
         <details class="tabla-contenedor desplegable" open>
           <summary>Detalle</summary>
           <table id="tabla-pv">
-            <thead><tr><th>DNI</th><th>Nombre</th><th>Agente</th><th>Empresa</th><th class="numero">Monto</th><th>Fecha Promesa</th><th>Vencimiento</th><th>Teléfono</th></tr></thead>
+            <thead><tr><th>Estado</th><th>DNI</th><th>Nombre</th><th>Agente</th><th>Unidad</th><th>Empresa</th><th class="numero">Monto</th><th>Fecha gestión</th><th>Vence</th><th class="numero">Días vencida</th><th>Teléfono</th></tr></thead>
             <tbody></tbody>
           </table>
         </details>

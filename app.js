@@ -1117,11 +1117,13 @@ async function llamarRpcPaginado(nombreFuncion, parametros) {
 }
 
 // ============================================================
-// PROMESAS VIGENTES
+// PROMESAS VIGENTES Y ROTAS
 // ============================================================
-// (llamadas movidas a mostrarApp, ver mas abajo -> estas quedan sin uso pero no rompen nada al quedar duplicadas)
+// Vigente = la promesa (ultima gestion de promesa de cada DNI en el mes) aun esta dentro de
+// los dias de vigencia desde la fecha de la gestion y sin pago; rota = se vencio sin pago.
 let ultimasFilasPV = [];
-document.getElementById('pv-unidad-negocio').addEventListener('change', cargarPromesasVigentes);
+['pv-unidad-negocio', 'pv-vigencia'].forEach(id => document.getElementById(id).addEventListener('change', cargarPromesasVigentes));
+document.getElementById('pv-filtro-estado').addEventListener('change', dibujarTablaPV);
 document.querySelector('[data-vista="promesas-vigentes"]').addEventListener('click', () => {
   if (document.getElementById('pv-unidad-negocio').value) cargarPromesasVigentes();
 });
@@ -1129,36 +1131,67 @@ document.querySelector('[data-vista="promesas-vigentes"]').addEventListener('cli
 async function cargarPromesasVigentes() {
   const unidad = document.getElementById('pv-unidad-negocio').value;
   if (!unidad) return;
-  const data = await llamarRpcPaginado('promesas_vigentes_lista', { p_unidad_negocio: unidad, fecha_desde: null, fecha_hasta: null });
+  const vigencia = Math.max(0, Math.min(60, parseInt(document.getElementById('pv-vigencia').value, 10) || 7));
+  const data = await llamarRpcPaginado('promesas_estado_lista', {
+    p_unidad_negocio: unidad === 'TODAS' ? null : unidad, p_vigencia_dias: vigencia, p_fecha_desde: null, p_fecha_hasta: null,
+  });
   ultimasFilasPV = data || [];
-  const formateadorMoneda = new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  const vigentes = ultimasFilasPV.filter(f => f.estado === 'VIGENTE').length;
+  const rotas = ultimasFilasPV.length - vigentes;
 
   document.getElementById('pv-kpis').innerHTML = `
-    <div class="tarjeta-kpi"><span class="valor">${formateadorNumero.format(ultimasFilasPV.length)}</span><span class="etiqueta">Promesas vigentes</span></div>`;
+    <div class="tarjeta-kpi"><span class="valor">${formateadorNumero.format(vigentes)}</span><span class="etiqueta">Promesas vigentes (hasta ${vigencia} días)</span></div>
+    <div class="tarjeta-kpi"><span class="valor">${formateadorNumero.format(rotas)}</span><span class="etiqueta">Promesas rotas</span></div>
+    <div class="tarjeta-kpi"><span class="valor">${formateadorNumero.format(ultimasFilasPV.length)}</span><span class="etiqueta">Total sin pago</span></div>`;
 
-  document.querySelector('#tabla-pv tbody').innerHTML = ultimasFilasPV.map(f => `
-    <tr>
-      <td>${f.dni_cliente}</td><td>${f.nombre_cliente || ''}</td><td>${f.usuario}</td><td>${f.empresa || ''}</td>
-      <td class="numero">${f.promesa_monto != null ? formateadorMoneda.format(f.promesa_monto) : '—'}</td>
-      <td>${f.promesa_fecha_pago || '—'}</td><td>${f.promesa_fecha_vencimiento || '—'}</td><td>${f.telefono || ''}</td>
-    </tr>`).join('');
+  dibujarTablaPV();
 
   const porAgente = {};
-  ultimasFilasPV.forEach(f => { porAgente[f.usuario] = (porAgente[f.usuario] || 0) + 1; });
-  const etiquetas = Object.keys(porAgente);
+  ultimasFilasPV.forEach(f => {
+    const a = porAgente[f.usuario] || (porAgente[f.usuario] = { vigentes: 0, rotas: 0 });
+    if (f.estado === 'VIGENTE') a.vigentes++; else a.rotas++;
+  });
+  const etiquetas = Object.keys(porAgente).sort((x, y) => (porAgente[y].rotas + porAgente[y].vigentes) - (porAgente[x].rotas + porAgente[x].vigentes));
+  const horizontal = etiquetas.length > 10;
+  document.getElementById('pv-grafico-caja').style.height = `${horizontal ? Math.max(360, etiquetas.length * 34) : 360}px`;
   destruirSiExiste('grafico-pv');
   graficos['grafico-pv'] = new Chart(document.getElementById('grafico-pv'), {
     type: 'bar',
-    data: { labels: etiquetas, datasets: [{ label: 'Promesas vigentes', data: etiquetas.map(e => porAgente[e]), backgroundColor: COLOR_BRONCE }] },
-    options: { responsive: true, plugins: { legend: { display: false } } },
+    data: {
+      labels: etiquetas,
+      datasets: [
+        { label: 'Vigentes', data: etiquetas.map(e => porAgente[e].vigentes), backgroundColor: COLOR_VERDE },
+        { label: 'Rotas', data: etiquetas.map(e => porAgente[e].rotas), backgroundColor: COLOR_BRONCE },
+      ],
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false, indexAxis: horizontal ? 'y' : 'x',
+      scales: { [horizontal ? 'x' : 'y']: { beginAtZero: true, ticks: { precision: 0 } } },
+    },
   });
+}
+
+function dibujarTablaPV() {
+  const filtro = document.getElementById('pv-filtro-estado').value;
+  const filas = filtro ? ultimasFilasPV.filter(f => f.estado === filtro) : ultimasFilasPV;
+  const formateadorMoneda = new Intl.NumberFormat('es-AR', { style: 'currency', currency: 'ARS', minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  const etiqueta = e => e === 'VIGENTE' ? 'Vigente' : 'Rota';
+  document.querySelector('#tabla-pv tbody').innerHTML = filas.map(f => `
+    <tr>
+      <td>${etiqueta(f.estado)}</td><td>${f.dni_cliente}</td><td>${f.nombre_cliente || ''}</td><td>${f.usuario}</td><td>${f.unidad_negocio}</td><td>${f.empresa || ''}</td>
+      <td class="numero">${f.promesa_monto != null ? formateadorMoneda.format(f.promesa_monto) : '—'}</td>
+      <td>${f.fecha_gestion || '—'}</td><td>${f.vence_el || '—'}</td><td class="numero">${f.estado === 'ROTA' ? f.dias_vencida : '—'}</td><td>${f.telefono || ''}</td>
+    </tr>`).join('');
 }
 
 document.getElementById('btn-descargar-pv').addEventListener('click', () => {
   if (!ultimasFilasPV.length) { alert('No hay datos para descargar.'); return; }
-  descargarComoCsv('Promesas_Vigentes.csv',
-    ['dni_cliente', 'nombre_cliente', 'usuario', 'empresa', 'promesa_monto', 'promesa_fecha_pago', 'promesa_fecha_vencimiento', 'telefono'],
-    ultimasFilasPV);
+  // Se descargan TODAS (vigentes y rotas), sin importar el filtro de la tabla, con la columna Observacion.
+  const filas = ultimasFilasPV.map(f => ({ ...f, observacion: f.estado === 'VIGENTE' ? 'Vigente' : 'Rota' }));
+  const unidad = document.getElementById('pv-unidad-negocio').value;
+  descargarComoCsv(`Promesas_${unidad === 'TODAS' ? 'Todas_las_unidades' : unidad.replace(/ /g, '_')}.csv`,
+    ['observacion', 'dni_cliente', 'nombre_cliente', 'usuario', 'unidad_negocio', 'empresa', 'promesa_monto', 'fecha_gestion', 'vence_el', 'dias_vencida', 'telefono'],
+    filas);
 });
 
 // ============================================================
