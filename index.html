@@ -493,9 +493,13 @@
           <button type="button" id="btn-descargar-pv" class="btn-secundario">Descargar todas (vigentes y rotas)</button>
         </div>
         <div class="tarjetas-kpi" id="pv-kpis"></div>
-        <div class="grilla-graficos">
+        <div class="grilla-graficos" style="grid-template-columns:1fr">
+          <details class="tarjeta-grafico desplegable" id="pv-grafico-unidad-caja" open style="display:none">
+            <summary>Promesas vigentes y rotas por unidad</summary>
+            <div id="pv-grafico-unidad-caja-canvas" style="position:relative;height:300px"><canvas id="grafico-pv-unidad"></canvas></div>
+          </details>
           <details class="tarjeta-grafico desplegable" open>
-            <summary>Promesas vigentes y rotas por agente</summary>
+            <summary>Promesas vigentes y rotas por agente (total entre paréntesis)</summary>
             <div id="pv-grafico-caja" style="position:relative;height:360px"><canvas id="grafico-pv"></canvas></div>
           </details>
         </div>
