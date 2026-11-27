@@ -1146,28 +1146,54 @@ async function cargarPromesasVigentes() {
 
   dibujarTablaPV();
 
-  const porAgente = {};
-  ultimasFilasPV.forEach(f => {
-    const a = porAgente[f.usuario] || (porAgente[f.usuario] = { vigentes: 0, rotas: 0 });
-    if (f.estado === 'VIGENTE') a.vigentes++; else a.rotas++;
+  const sumar = (clave) => {
+    const m = {};
+    ultimasFilasPV.forEach(f => {
+      const k = clave(f);
+      const a = m[k] || (m[k] = { vigentes: 0, rotas: 0, unidad: f.unidad_negocio });
+      if (f.estado === 'VIGENTE') a.vigentes++; else a.rotas++;
+    });
+    return m;
+  };
+  const ABREV = { 'ON CITY JUDICIAL': 'OC Jud.', 'CFN JUDICIAL': 'CFN Jud.', 'ON CITY TERCERIZADO': 'OC Terc.', 'CFN TERCERIZADO': 'CFN Terc.', 'GERENCIAR RECUPERA': 'Recupera' };
+  const opcionesApilado = (alto) => ({
+    responsive: true, maintainAspectRatio: false, indexAxis: 'y',
+    interaction: { mode: 'index', axis: 'y', intersect: false },
+    plugins: { legend: { position: 'top' } },
+    scales: {
+      x: { stacked: true, beginAtZero: true, ticks: { precision: 0 } },
+      y: { stacked: true, ticks: { autoSkip: false, font: { size: 11 } }, grid: { display: false } },
+    },
   });
-  const etiquetas = Object.keys(porAgente).sort((x, y) => (porAgente[y].rotas + porAgente[y].vigentes) - (porAgente[x].rotas + porAgente[x].vigentes));
-  const horizontal = etiquetas.length > 10;
-  document.getElementById('pv-grafico-caja').style.height = `${horizontal ? Math.max(360, etiquetas.length * 34) : 360}px`;
+  const dataset = (m, claves) => ([
+    { label: 'Vigentes', data: claves.map(k => m[k].vigentes), backgroundColor: COLOR_VERDE, maxBarThickness: 20 },
+    { label: 'Rotas', data: claves.map(k => m[k].rotas), backgroundColor: COLOR_BRONCE, maxBarThickness: 20 },
+  ]);
+
+  // Resumen por unidad (solo con "Todas las unidades"): pocas barras, lectura rapida.
+  const cajaUnidad = document.getElementById('pv-grafico-unidad-caja');
+  destruirSiExiste('grafico-pv-unidad');
+  if (unidad === 'TODAS') {
+    const mu = sumar(f => f.unidad_negocio);
+    const us = Object.keys(mu).sort((x, y) => (mu[y].vigentes + mu[y].rotas) - (mu[x].vigentes + mu[x].rotas));
+    cajaUnidad.style.display = '';
+    document.getElementById('pv-grafico-unidad-caja-canvas').style.height = `${us.length * 48 + 70}px`;
+    graficos['grafico-pv-unidad'] = new Chart(document.getElementById('grafico-pv-unidad'), {
+      type: 'bar', data: { labels: us, datasets: dataset(mu, us) }, options: opcionesApilado(),
+    });
+  } else {
+    cajaUnidad.style.display = 'none';
+  }
+
+  // Por agente: una barra apilada (vigentes + rotas) por agente, agrupados por unidad.
+  const ma = sumar(f => f.usuario);
+  const agentes = Object.keys(ma).sort((x, y) =>
+    ma[x].unidad.localeCompare(ma[y].unidad) || (ma[y].rotas + ma[y].vigentes) - (ma[x].rotas + ma[x].vigentes));
+  const etiquetas = agentes.map(k => `${k} (${ma[k].vigentes + ma[k].rotas})` + (unidad === 'TODAS' ? ` · ${ABREV[ma[k].unidad] || ma[k].unidad}` : ''));
+  document.getElementById('pv-grafico-caja').style.height = `${Math.max(240, agentes.length * 26 + 70)}px`;
   destruirSiExiste('grafico-pv');
   graficos['grafico-pv'] = new Chart(document.getElementById('grafico-pv'), {
-    type: 'bar',
-    data: {
-      labels: etiquetas,
-      datasets: [
-        { label: 'Vigentes', data: etiquetas.map(e => porAgente[e].vigentes), backgroundColor: COLOR_VERDE },
-        { label: 'Rotas', data: etiquetas.map(e => porAgente[e].rotas), backgroundColor: COLOR_BRONCE },
-      ],
-    },
-    options: {
-      responsive: true, maintainAspectRatio: false, indexAxis: horizontal ? 'y' : 'x',
-      scales: { [horizontal ? 'x' : 'y']: { beginAtZero: true, ticks: { precision: 0 } } },
-    },
+    type: 'bar', data: { labels: etiquetas, datasets: dataset(ma, agentes) }, options: opcionesApilado(),
   });
 }
 
